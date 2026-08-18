@@ -48,7 +48,14 @@ A second, independent fallback layer listens for `pause` events in the capture p
 Both scripts are tightly bound to the target site's internals and will silently stop working if the site changes:
 
 - `anti-pause.js` depends on the global being named `player` and exposing a `pause()` method.
-- `content.js` depends on Tailwind/Alpine.js markup — the selectors `div.content-without-search`, `div.content-with-search`, and `div[x-data].flex`. It re-applies styles from a `MutationObserver` on `document.body` because the page swaps this markup in dynamically.
+- `content.js` depends on Tailwind/Alpine.js markup — it finds the layout roots `div.content-without-search` / `div.content-with-search`, then queries `div[x-data].flex` *within* them. It re-applies styles from a `MutationObserver` on `document.body` because the page swaps this markup in dynamically.
+
+**Do not widen the `div[x-data].flex` selector back to a document-wide query.** `x-data` marks every Alpine component root on the page, and Alpine's `x-show` toggles elements by writing inline `display`. A global query therefore fights Alpine for the same property on components that have nothing to do with the video layout, and the `MutationObserver` re-fights it on every DOM change. The observed symptom was the login modal (opened by the favourite button) failing to appear at all. Two guards prevent this and both matter:
+
+- the query runs **inside** the `div.content-*` layout roots, not on `document`;
+- elements carrying `x-show`, or computing to `position: fixed`, are skipped — those are Alpine-controlled or overlays.
+
+Note the failure mode is not "the element gets forced visible", which is what fighting over `display` naively suggests. Bisect against the live page rather than reasoning about it; disabling one content script in `manifest.json`, then one block within `content.js`, localises it in two reload cycles.
 
 The domain appears in `host_permissions` and in both `content_scripts[].matches`. Changing the target site means updating all three.
 

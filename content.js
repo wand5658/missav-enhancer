@@ -1,7 +1,9 @@
 (function () {
     function applyStyles() {
-        // 第一個 div（匹配有特定 class 的元素）
-        document.querySelectorAll("div.content-without-search, div.content-with-search").forEach(div => {
+        const layoutRoots = document.querySelectorAll("div.content-without-search, div.content-with-search");
+
+        // 第一個 div（版面容器本身，加寬並置中）
+        layoutRoots.forEach(div => {
             div.style.paddingLeft = "0px";
             div.style.paddingRight = "0px";
             div.style.marginLeft = "auto";
@@ -9,10 +11,20 @@
             div.style.maxWidth = "150vh";
         });
 
-        // 第二個 div（匹配有 x-data 屬性的元素）
-        document.querySelectorAll("div[x-data].flex").forEach(div => {
-            div.style.display = "flex";
-            div.style.flexDirection = "column";
+        // 第二個 div（版面容器內的 Alpine 元件，改成直排）
+        //
+        // 必須限制在 layout 容器內，而且要跳過 Alpine 用 x-show 控制的元素。
+        // 全站掃 div[x-data].flex 會打到登入 modal —— x-show 是靠寫 inline
+        // display 開關元素的，這裡再把 display 寫回去就等於跟 Alpine 搶同一個
+        // 屬性，加上下面的 MutationObserver 每次 DOM 變動都會重搶一次，
+        // 結果是 modal 卡住打不開。
+        layoutRoots.forEach(root => {
+            root.querySelectorAll("div[x-data].flex").forEach(div => {
+                if (div.hasAttribute("x-show")) return;
+                if (getComputedStyle(div).position === "fixed") return;
+                div.style.display = "flex";
+                div.style.flexDirection = "column";
+            });
         });
     }
 
