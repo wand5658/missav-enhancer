@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-An unpacked Chrome extension (Manifest V3) that patches one specific site, `missav.ai`. Two unrelated features: prevent the page from auto-pausing video when the window or tab loses focus, and widen the video layout.
+An unpacked Chrome extension (Manifest V3) that patches one specific site, served from two domains — `missav.ai` and `missav.ws`. Both run the same frontend, so a single set of scripts and selectors covers them. Two unrelated features: prevent the page from auto-pausing video when the window or tab loses focus, and widen the video layout.
 
 There is no build step, no bundler, no package manager, no linter, and no test suite. The files in this directory *are* the extension — Chrome loads them as-is.
 
@@ -57,7 +57,7 @@ Both scripts are tightly bound to the target site's internals and will silently 
 
 Note the failure mode is not "the element gets forced visible", which is what fighting over `display` naively suggests. Bisect against the live page rather than reasoning about it; disabling one content script in `manifest.json`, then one block within `content.js`, localises it in two reload cycles.
 
-The domain appears in `host_permissions` and in both `content_scripts[].matches`. Changing the target site means updating all three.
+The target domains are listed in three separate places in `manifest.json`: `host_permissions`, and the `matches` array of each of the two `content_scripts` entries. Adding, removing, or changing a domain means editing all three lists — miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
 
 ### Diagnosing a regression
 
