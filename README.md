@@ -42,7 +42,7 @@ A second fallback layer watches for `pause` events in the capture phase and resu
 
 Both scripts are coupled to the target site's internals. If the site renames its `player` global or changes the markup that `content.js` selects, the extension stops having an effect — silently, since there is nothing to error on. `CLAUDE.md` documents a Console-based procedure for re-identifying the pause mechanism when that happens.
 
-The target domain appears in `host_permissions` and in both `content_scripts[].matches` entries in `manifest.json`; all three need updating to point the extension elsewhere.
+The target domains are listed in three places in `manifest.json` — `host_permissions`, and the `matches` array of each of the two `content_scripts` entries. Pointing the extension elsewhere, or adding another domain, means editing all three; miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
 
 ## License
 
