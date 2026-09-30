@@ -1,10 +1,13 @@
 (function () {
-    // 首頁頂端的封面輪播。資料完全從頁面已經渲染好的卡片讀，不另外 fetch —
+    // 列表頁頂端的封面輪播。資料完全從當前頁面已經渲染好的卡片讀，不另外 fetch —
     // 站台在 Cloudflare 後面，同源 DOM 是唯一穩定的來源。
     //
-    // 只在首頁啟動：首頁卡片的預覽影片 id 是 preview-home-<區塊>-<番號>，
-    // 其他列表頁的卡片不是這個前綴，所以不用比對網址。
-    const CARD_VIDEO = 'video.preview[id^="preview-home-"]';
+    // 首頁靠卡片認：預覽影片 id 是 preview-home-<區塊>-<番號>，不用管網址或語系路徑。
+    // 其他要輪播的頁面靠網址認，收整頁的 .thumbnail（不依賴那些頁面的 video id 格式）。
+    // 影片頁底下的推薦卡片也是 .thumbnail，所以不能不看網址就全站收。
+    const LIST_PAGES = [/^\/dm635(\/|$)/, /^\/saved\/?$/];
+    const onListPage = LIST_PAGES.some(re => re.test(location.pathname));
+    const CARD_VIDEO = onListPage ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
     const LAYOUT_ROOT = "div.content-without-search, div.content-with-search";
 
     const SLIDE_MS = 12000;         // 每張停多久（進度條的動畫就是時鐘）
@@ -27,14 +30,14 @@
     function readCard(video) {
         const card = video.closest(".thumbnail");
         if (!card) return null;
-        const id = video.id.replace(/^preview-home-\d+-/, "");
-        // 區塊之間常有同一部重複出現
-        if (!id || seen.has(id)) return null;
-
-        // CDN 網址從預覽影片推回去，換 CDN 網域時不用改這裡
+        // CDN 網址從預覽影片推回去，換 CDN 網域時不用改這裡。
+        // Alpine 還沒求值的卡片 data-src 是空的或不是網址，下一輪再收
         const preview = video.getAttribute("data-src") || video.getAttribute("src") || "";
-        if (!/^https?:\/\/.+\/preview\.mp4$/.test(preview)) return null;
-        const base = preview.replace(/\/preview\.mp4$/, "");
+        const m = /^(https?:\/\/[^/]+\/([^/]+))\/preview\.mp4$/.exec(preview);
+        if (!m) return null;
+        const [, base, id] = m;             // 番號取自網址路徑，每種頁面的 video id 格式都不同
+        // 區塊之間常有同一部重複出現
+        if (seen.has(id)) return null;
 
         const link = card.querySelector("a[href]:not([href^='javascript'])");
         const titleEl = card.querySelector(".my-2 a") || card.querySelector("a[x-text]");

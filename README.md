@@ -9,7 +9,7 @@ Some video pages register handlers on `window` `blur` and `document` `visibility
 ## Features
 
 - **Anti auto-pause** — playback survives `Alt+Tab`, `Ctrl+Tab`, and clicking into another window. Pausing yourself (the player button, spacebar) still works normally.
-- **Home page carousel** — a hero at the top of the home page rotates through the page's own video cards: dimmed cover backdrop, a cover frame that crossfades into the muted preview clip, title, prev/next, and a progress bar. Pauses on hover, when the tab is hidden, or when scrolled mostly out of view.
+- **Cover carousel** — a hero at the top of the home page, `/dm635/*` and `/saved` rotates through that page's own video cards: dimmed cover backdrop, a cover frame that crossfades into the muted preview clip, title, prev/next, and a progress bar. Pauses on hover, when the tab is hidden, or when scrolled mostly out of view.
 - **Wide layout** — removes the horizontal padding around the player container and centres it at `max-width: 150vh`, re-applying on DOM changes so it survives client-side navigation.
 
 ## Install
@@ -38,7 +38,7 @@ A second fallback layer watches for `pause` events in the capture phase and resu
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
 | `content.js` | isolated | `document_end` | Layout adjustments via `MutationObserver` |
-| `hero.js` | isolated | `document_end` | Home page cover carousel |
+| `hero.js` | isolated | `document_end` | Cover carousel on the home page, `/dm635/*`, `/saved` |
 
 ## Limitations
 
