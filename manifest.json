@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Video Helper - Anti Auto-Pause & Wide Layout",
   "short_name": "Video Helper",
-  "version": "1.1",
-  "description": "Stops the page from auto-pausing playback when the window or tab loses focus, and widens the video layout.",
+  "version": "1.2",
+  "description": "Stops the page from auto-pausing playback when the window or tab loses focus, widens the video layout, and adds a cover carousel to the home page.",
   "host_permissions": [
     "https://missav.ai/*",
 	"https://missav.ws/*"
@@ -26,7 +26,8 @@
 		"https://missav.ws/*"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "hero.js"
       ],
       "run_at": "document_end"
     }
