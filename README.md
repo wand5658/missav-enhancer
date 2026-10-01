@@ -13,7 +13,7 @@ Some video pages register handlers on `window` `blur` and `document` `visibility
 - **Home rows** — the home page's sections become Netflix-style horizontal rows (scroll-snap, a peek of the next card, hover arrows, ←/→ between cards, cards enlarge on hover). The random section stays a grid. In-page ads are hidden on the home and list pages.
 - **List toolbar** — the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with the current page number.
 - **Edge-to-edge layout** — every page drops the centred container in favour of a small side gutter.
-- **Theater video page** — the player sits in a full-width black band sized to fit the window height; the up-next list becomes a scrolling row right under it, followed by title, actions, details and a second row of related videos. Ads and promo links are hidden.
+- **Theater video page** — the player sits in a full-width band sized to fit the window height, lit by a blurred, slowly breathing glow from the video's own cover that tints the whole page; the up-next list becomes a scrolling row right under it, followed by title, actions, details and a second row of related videos. Ads and promo links are hidden.
 
 ## Install
 

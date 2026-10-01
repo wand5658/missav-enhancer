@@ -234,6 +234,9 @@
                 });
 
                 ui.hero.hidden = false;
+                // 頁面背景（browse.css 的全頁染色）跟著目前這張封面換色
+                if (/^https:\/\/[\w.\/-]+$/.test(cover))
+                    document.documentElement.style.setProperty("--vh-cover", `url("${cover}")`);
                 ui.count.textContent = `${at + 1} / ${pool.length}`;
                 ui.bar.classList.remove("run");
                 void ui.bar.offsetWidth;            // 重播 CSS 動畫
@@ -296,6 +299,14 @@
 /* 滿版時頁首（固定、透明漸層）疊在上面：高度和上緣留白都加上頁首高度，--vh-header 由 browse.js 寫在 <html> 上 */
 :host([data-bleed]) .hero { border-radius: 0; height: calc(var(--h) + var(--vh-header, 0px)); }
 :host([data-bleed]) .link { padding-top: calc(32px + var(--vh-header, 0px)); }
+/* 滿版時下緣淡進頁面背景（browse.css 用目前封面染色的那層），不切出一條硬邊 */
+:host([data-bleed]) .hero { background: transparent; }
+:host([data-bleed]) .bg,
+:host([data-bleed]) .slide::after {
+    -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+}
+:host([data-bleed]) .slide::after { background: linear-gradient(90deg, rgba(27, 30, 37, .15) 30%, rgba(27, 30, 37, .7)); }
 .stage { position: absolute; inset: 0; }
 .slide {
     position: absolute;

@@ -224,6 +224,26 @@
         side.style.maxWidth = side.style.minWidth = "";
     }
 
+    // ── 影片頁：環境光的封面 ──────────────────────────────────
+    // og:image 和播放器的 data-poster 都是伺服器端就有的 cover-n.jpg；寫成 CSS 變數給 browse.css 的三層環境光
+    function initAmbient() {
+        const src = document.querySelector('meta[property="og:image"]')?.content ||
+            root.querySelector("video.player")?.dataset.poster || "";
+        if (!/^https:\/\/[^"\\\s)]+$/.test(src)) return;
+        const value = `url("${src}")`;
+        if (document.documentElement.style.getPropertyValue("--vh-cover") !== value)
+            document.documentElement.style.setProperty("--vh-cover", value);
+    }
+
+    // ── 影片頁：播放器頂端位置 ────────────────────────────────
+    // browse.css 用它算播放器寬度，讓影片高度剛好到視窗底線上方。頂端位置跟寬度無關，量一次不會互相影響
+    function measurePlayer() {
+        const box = root.querySelector(":scope > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child");
+        if (!box) return;
+        const top = Math.round(box.getBoundingClientRect().top + scrollY);
+        document.documentElement.style.setProperty("--vh-player-top", `${Math.max(0, top)}px`);
+    }
+
     // ── 卡片：hover 放大的原點 ────────────────────────────────
     // 放大 1.3 倍，靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
     // 進入卡片時量一次：左邊不夠就從左緣放大、右邊不夠就從右緣。CSS 有 0.3s 延遲，量的時候還沒放大
@@ -261,6 +281,8 @@
             initRows();
             placeHero();
         } else if (kind === "video") {
+            initAmbient();
+            measurePlayer();
             initSide();
             initRows();
         } else {
@@ -282,6 +304,7 @@
     addEventListener("resize", () => {
         if (kind === "list") return;
         if (kind === "home") placeHero();
+        if (kind === "video") measurePlayer();
         layoutRows();
     });
 })();

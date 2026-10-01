@@ -358,13 +358,24 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 /* 文字區不要拉到整個寬螢幕，一行太長不好讀 */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :is(div.mt-4, div[x-show*="share"], div[x-show*="playlist"], div.mb-8) { max-width: 1280px; }
 
-/* 劇院底帶：黑底撐到視窗兩邊；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度 */
+/* 頁首和播放器之間：網站的 layout root 上內距是固定的 80px（窄螢幕 56px），比頁首高出一截；
+ * 改成頁首高度再留 8px */
+html.vh-video :is(div.content-without-search, div.content-with-search) {
+    padding-top: calc(var(--vh-header, 56px) + 8px);
+}
+
+/* 劇院底帶：撐到視窗兩邊；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度。
+ * 底色透明，讓後面的環境光透出來（見下方「環境光」）；overflow-x: clip 切掉光暈左右溢出，
+ * 不然窄視窗會多出橫向捲軸 */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
-    --vh-player-w: max(480px, calc((100vh - var(--vh-header, 0px)) * 16 / 9));   /* 影片高度填滿頁首以下；循環列在下方 */
+    /* 影片底部離視窗底線留 --vh-player-gap；--vh-player-top 是播放器在文件裡的頂端位置（browse.js 量），
+     * 不能只扣頁首高度：播放器上面還有 layout root 的上內距，扣不夠會被視窗底線切掉 */
+    --vh-player-gap: 12px;
+    --vh-player-w: max(480px, calc((100vh - var(--vh-player-top, var(--vh-header, 0px)) - var(--vh-player-gap)) * 16 / 9));
     margin-left: calc(-1 * var(--vh-gutter));
     margin-right: calc(-1 * var(--vh-gutter));
     padding: 0 var(--vh-gutter);
-    background: #000;
+    overflow-x: clip;
 }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > * {
     max-width: var(--vh-player-w);
@@ -475,6 +486,101 @@ html.vh-video [data-vh-section] {
     overflow: visible;
     margin-top: 16px;
 }
+
+/* ── 影片頁：環境光 ────────────────────────────────────────
+ * 三層都用這部片的封面（browse.js 從 og:image 讀出來寫進 --vh-cover），糊到只剩顏色：
+ * 1. 播放器光暈：墊在播放器正後方、放大一點，顏色從畫面邊緣溢出，緩慢呼吸
+ * 2. 上半部環境光：從頁頂往下淡出，跟著頁面捲走
+ * 3. 全頁染色：fixed，捲到底都還帶這部片的色調；四周暗角保住文字對比
+ * 網站的深色漸層畫在 body 上（沒有 html 背景，所以會傳到畫布），
+ * body 的負 z-index 偽元素畫在畫布之上、內容之下。全部是偽元素，不插 DOM。
+ * 由下往上：全頁染色 -3、暗角 -2、上半部 -1，都在根 stacking context；
+ * 所以播放器底帶不能 isolate，不然上半部那層會變成正常圖層，蓋到底下的標題和詳情 */
+html.vh-video {
+    --vh-halo-a: .85;
+    --vh-top-a: .9;
+}
+/* 全頁染色和暗角也用在首頁、列表頁：--vh-cover 由 hero.js 換成目前輪播那張，
+ * Chrome 會對 background-image 的 transition 做交叉淡化，換片時顏色慢慢過去 */
+:is(html.vh-home, html.vh-list, html.vh-video) { --vh-wash-a: .55; }
+:is(html.vh-home, html.vh-list, html.vh-video) body::before {
+    content: "";
+    position: fixed;
+    inset: -20%;
+    z-index: -3;
+    pointer-events: none;
+    background: var(--vh-cover, none) center / cover;
+    filter: blur(120px) saturate(1.5) brightness(.45);
+    opacity: var(--vh-wash-a);
+    transition: background-image 1.5s ease;
+}
+:is(html.vh-home, html.vh-list, html.vh-video) body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+        radial-gradient(120% 90% at 50% 30%, transparent 40%, rgba(9, 8, 18, .85) 100%),
+        linear-gradient(180deg, transparent 50%, rgba(7, 9, 14, .6) 100%);
+}
+/* 上半部那層掛在播放器底帶上：它就在頁頂，跟著捲走；
+ * 盒子不超出底帶寬度（blur 的溢出不算捲動範圍），往下由 mask 淡出 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(-1 * var(--vh-header, 0px) - 24px);
+    height: 150vh;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--vh-cover, none) center 30% / cover;
+    filter: blur(90px) saturate(1.7) brightness(.6);
+    opacity: var(--vh-top-a);
+    -webkit-mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
+            mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { position: relative; }
+/* 播放器光暈：墊在播放器外框（第一個子元素）後面 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child { position: relative; isolation: isolate; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--vh-cover, none) center / cover;
+    filter: blur(50px) saturate(2) brightness(.9);
+    transform: scale(1.12, 1.18);
+    opacity: var(--vh-halo-a);
+}
+@media (prefers-reduced-motion: no-preference) {
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before { animation: vh-breathe 9s ease-in-out infinite alternate; }
+}
+@keyframes vh-breathe {
+    from { transform: scale(1.08, 1.12); opacity: calc(var(--vh-halo-a) * .75); }
+    to   { transform: scale(1.16, 1.24); opacity: var(--vh-halo-a); }
+}
+/* 光暈放大後會溢出播放器下緣，循環播放列、手機快轉列要疊在它上面 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:not(:first-child) { position: relative; z-index: 1; }
+/* 循環播放列原本黑底，會在光暈中間切出一條黑帶 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div.bg-black { background: transparent; }
+
+/* 玻璃面板：半透明＋背景模糊，透出底下的色調 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button,
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(255, 255, 255, .12); }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
+    padding: 16px 20px;
+    border-radius: 12px;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 { text-shadow: 0 1px 12px rgba(0, 0, 0, .4); }
 
 @media (prefers-reduced-motion: reduce) {
     html.vh-home .thumbnail,
