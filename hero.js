@@ -5,7 +5,7 @@
     // 首頁靠卡片認：預覽影片 id 是 preview-home-<區塊>-<番號>，不用管網址或語系路徑。
     // 其他要輪播的頁面靠網址認，收整頁的 .thumbnail（不依賴那些頁面的 video id 格式）。
     // 影片頁底下的推薦卡片也是 .thumbnail，所以不能不看網址就全站收。
-    const LIST_PAGES = [/^\/dm635(\/|$)/, /^\/saved\/?$/];
+    const LIST_PAGES = [/^\/dm\d+(\/|$)/, /^\/saved\/?$/];    // dm 後面的數字會換（dm635、dm539…）
     const onListPage = LIST_PAGES.some(re => re.test(location.pathname));
     const CARD_VIDEO = onListPage ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
     const LAYOUT_ROOT = "div.content-without-search, div.content-with-search";
