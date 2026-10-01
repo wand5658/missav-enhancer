@@ -10,14 +10,28 @@
 (function () {
     "use strict";
 
-    const GESTURE_WINDOW = 700;   // ms，這段時間內的 pause 視為使用者主動操作
+    // 設定由 browse.js 寫在 <html data-vh-anti-pause='{"on":…,"gestureMs":…,"fallback":…}'>：
+    // MAIN world 用不了 chrome.storage，所以每次要判斷時才讀這個屬性。
+    // 還沒寫入（設定還在讀）就用預設值，setter 照樣在 document_start 先裝好
+    const DEFAULTS = { on: true, gestureMs: 700, fallback: true };
+    let cfgRaw = null;
+    let cfg = DEFAULTS;
+    function config() {
+        const raw = document.documentElement?.dataset.vhAntiPause ?? null;
+        if (raw !== cfgRaw) {
+            cfgRaw = raw;
+            try { cfg = { ...DEFAULTS, ...(raw ? JSON.parse(raw) : {}) }; } catch { cfg = DEFAULTS; }
+        }
+        return cfg;
+    }
     let lastGesture = 0;
 
     ["click", "keydown", "touchstart", "pointerdown"].forEach(type => {
         window.addEventListener(type, () => { lastGesture = performance.now(); }, true);
     });
 
-    const byUser = () => performance.now() - lastGesture < GESTURE_WINDOW;
+    // 這段時間（預設 700 ms）內的 pause 視為使用者主動操作
+    const byUser = () => performance.now() - lastGesture < config().gestureMs;
 
     // 主要防線：攔住 Plyr 實例的 pause()
     let instance;
@@ -28,7 +42,7 @@
         }
         const origPause = player.pause.bind(player);
         player.pause = function () {
-            if (byUser()) {
+            if (!config().on || byUser()) {
                 return origPause();
             }
             console.debug("[anti-pause] 已阻止一次自動暫停");
@@ -50,6 +64,7 @@
     document.addEventListener("pause", event => {
         const video = event.target;
         if (!(video instanceof HTMLMediaElement)) return;
+        if (!config().on || !config().fallback) return;
         if (video.ended || video.seeking) return;
         if (byUser() || document.hasFocus()) return;
 
