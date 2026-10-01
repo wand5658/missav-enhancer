@@ -43,6 +43,10 @@ html.vh-home [data-vh-section] + div.absolute.w-full.text-center {
     z-index: 5;
     padding: 4px 0 8px;
 }
+/* 向下箭頭轉成 >：新卡片是接在橫列右邊，不是往下長 */
+html.vh-home [data-vh-section] + div.absolute.w-full.text-center > a svg {
+    transform: rotate(-90deg);
+}
 
 /* ── 卡片（首頁、列表頁共用）────────────────────────────── */
 html.vh-home .thumbnail,
