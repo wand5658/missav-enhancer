@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- 32 / 48 / 128 用。16px 用 icon-16.svg（光暈縮小會糊掉，改成整塊漸層） -->
+  <defs>
+    <radialGradient id="glow" cx=".42" cy=".45" r=".6">
+      <stop offset="0" stop-color="#88c0d0" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#81a1c1" stop-opacity=".55"/>
+      <stop offset=".8" stop-color="#b48ead" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#b48ead" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#111520"/>
+  <circle cx="60" cy="62" r="46" fill="url(#glow)" filter="url(#soft)"/>
+  <path d="M44 36.5c0-4.2 4.6-6.8 8.2-4.6l33 20.5c3.4 2.1 3.4 7 0 9.1l-33 20.5c-3.6 2.2-8.2-.4-8.2-4.6z" fill="#fff" filter="url(#shadow)"/>
+</svg>

@@ -130,5 +130,6 @@ The stack trace identifies whether the pause still routes through Plyr (`wt.paus
 ## Constraints
 
 - The extension has **no background service worker, no `action`, and no `permissions`** — only `host_permissions`. An earlier version had a `Ctrl+Shift+Q` hotkey backed by `background.js` plus `tabs`/`scripting`/`activeTab`/`windows` permissions; all of it was removed. Adding any `chrome.*` API call to a content script requires restoring the matching permission.
+- **Icons** (`manifest.json` `icons`, no `action`): `icons/icon.svg` is the source for 32 / 48 / 128 and `icons/icon-16.svg` a simplified 16px variant — the soft glow turns to mush at 16px and disappears on a dark toolbar, so it becomes a full-tile gradient. The PNGs are rendered from the SVGs with headless Chrome (an `<img>` at the target size, `--default-background-color=00000000`, `--screenshot`, then cropped to N×N); re-render all four after editing either SVG.
 - `world: "MAIN"` requires Chrome 111 or newer.
 - `all_frames` is intentionally omitted: the player lives in the top-level frame, so injecting into ad iframes would be pure overhead.
