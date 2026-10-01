@@ -275,6 +275,76 @@
         });
     }
 
+    // ── 卡片：捲動進場 ────────────────────────────────────────
+    // 卡片進入畫面時淡入上浮一次（browse.css 的 .vh-rv / .vh-in），同一批依畫面順序（上到下、左到右）錯開。
+    // 動的是卡片在網格／橫列裡的那一格（可能就是 .thumbnail 本身）；只動 opacity 和 translate，不碰 display。
+    // 演完把 class 拿掉，卡片回到原本的樣式，不留多餘的 transition
+    const REVEAL_MS = 800;          // 跟 browse.css 的 .vh-rv 一起改
+    const REVEAL_GAP = 150;
+    let revealBatch = [];
+    const revealIO = reduced.matches ? null : new IntersectionObserver(entries => {
+        for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            revealIO.unobserve(e.target);
+            if (!revealBatch.length) requestAnimationFrame(revealFlush);
+            revealBatch.push(e.target);
+        }
+    }, { threshold: 0.15 });
+
+    function revealFlush() {
+        const items = revealBatch.map(el => ({ el, r: el.getBoundingClientRect() }));
+        revealBatch = [];
+        items.sort((a, b) => Math.round(a.r.top - b.r.top) || a.r.left - b.r.left);
+        items.forEach(({ el }, i) => {
+            const delay = Math.min(i, 8) * REVEAL_GAP;
+            el.style.setProperty("--vh-rv-d", `${delay}ms`);
+            el.classList.add("vh-in");
+            setTimeout(() => {
+                el.classList.remove("vh-rv", "vh-in");
+                el.style.removeProperty("--vh-rv-d");
+            }, delay + REVEAL_MS + 50);
+        });
+    }
+
+    // 首頁、列表頁的 hero 是之後才插進來的。插進來之前卡片就在第一屏，一觀察就演完了，
+    // 等 hero 把它們推到下面，使用者捲下去看到的是已經出現好的卡片。
+    // 所以先只標 .vh-rv（藏起來），等 hero 就位（或等不到它）才開始觀察
+    let revealReady = kind === "video";
+    const pending = [];
+    if (!revealReady) setTimeout(() => startReveal(), 3000);   // 保險：沒有可輪播的卡片時 hero 不會出現
+
+    function startReveal() {
+        if (revealReady) return;
+        revealReady = true;
+        // 等 placeHero 的版面生效再觀察
+        requestAnimationFrame(() => pending.splice(0).forEach(u => revealIO.observe(u)));
+    }
+
+    function initReveal() {
+        if (!revealIO) return;
+        root.querySelectorAll(".thumbnail").forEach(card => {
+            const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
+            if (unit.dataset.vhRv) return;
+            unit.dataset.vhRv = "1";
+            unit.classList.add("vh-rv");
+            if (revealReady) revealIO.observe(unit);
+            else pending.push(unit);
+        });
+        // hero 的 host 一插進來時裡面還是 hidden（第一張封面載完才顯示），高度幾乎是 0；
+        // 那個切換發生在 Shadow DOM 裡，上面的 MutationObserver 看不到，所以盯 host 的尺寸
+        const host = root.querySelector(':scope > [data-video-helper="hero"]');
+        if (!revealReady && host && !host.dataset.vhRvWatch) {
+            host.dataset.vhRvWatch = "1";
+            const ro = new ResizeObserver(() => {
+                if (host.getBoundingClientRect().height < 100) return;
+                ro.disconnect();
+                placeHero();
+                startReveal();
+            });
+            ro.observe(host);
+        }
+    }
+
     // ── 啟動 ──────────────────────────────────────────────────
     function refresh() {
         if (kind === "home") {
@@ -290,6 +360,7 @@
             placeHero();
         }
         tidyCards();
+        initReveal();               // 在 initRows 之後：要先知道哪些網格變成橫列
     }
 
     refresh();

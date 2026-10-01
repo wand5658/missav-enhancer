@@ -582,6 +582,25 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 { text-shadow: 0 1px 12px rgba(0, 0, 0, .4); }
 
+/* ── 卡片捲動進場（browse.js 的 initReveal）────────────────
+ * 進場前透明、往下 28px；加上 .vh-in 淡入上浮，--vh-rv-d 是同一批裡的錯開延遲。
+ * 用獨立的 translate 屬性，跟 hover 放大的 transform 疊加不衝突。
+ * 那一格本身就是 .thumbnail 時，transition 要連 hover 的那三項一起寫，不然會蓋掉 */
+html.vh-wide .vh-rv {
+    opacity: 0;
+    translate: 0 28px;
+    transition:
+        opacity .8s ease var(--vh-rv-d, 0ms),
+        translate .8s cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms);
+}
+html.vh-wide .thumbnail.vh-rv {
+    transition:
+        opacity .8s ease var(--vh-rv-d, 0ms),
+        translate .8s cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms),
+        transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+html.vh-wide .vh-rv.vh-in { opacity: 1; translate: none; }
+
 @media (prefers-reduced-motion: reduce) {
     html.vh-home .thumbnail,
     html.vh-list .thumbnail,
