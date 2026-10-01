@@ -17,6 +17,10 @@ Some video pages register handlers on `window` `blur` and `document` `visibility
 - **Edge-to-edge layout** — every page drops the centred container in favour of a small side gutter.
 - **Theater video page** — the player sits in a full-width band sized to fit the window height, lit by a blurred, slowly breathing glow from the video's own cover that tints the whole page; the up-next list becomes a scrolling row right under it, followed by title, actions, details and a second row of related videos. Ads and promo links are hidden.
 
+## Settings
+
+Click the toolbar icon to open the settings popup (Traditional Chinese or English, following the browser). Each group — anti auto-pause, cover carousel, home page, list pages, video page, look and motion, ads — has a master switch and its own options: carousel pages, height, time per slide, transitions and speed; cards per row and hover zoom; list columns; theater layout and the space below the player; ambient light and page tint strength, glass panels, scroll reveal timing; and motion (follow the system, full, or reduced). Changes apply to open tabs immediately; the few that restructure a page are marked and offer a reload. Settings sync across browsers signed in to the same account and can be reset, exported and imported as JSON.
+
 ## Install
 
 No build step — the repository *is* the extension.
@@ -31,7 +35,7 @@ Requires Chrome 111 or newer (for `world: "MAIN"` content scripts).
 
 The page's pause handlers all funnel through a single call — `window.player.pause()`, where `window.player` is a [Plyr](https://plyr.io/) instance. Rather than blocking the `blur` and `visibilitychange` events (which would break unrelated page features that legitimately listen for them), the extension intercepts just that one method.
 
-`anti-pause.js` installs an accessor on `window.player` at `document_start`, before the page's own script assigns it, and wraps the instance's `pause` on the way through. The wrapper allows a pause only if a `click`, `keydown`, `touchstart`, or `pointerdown` happened within the last 700 ms — so a deliberate pause passes and a focus-driven one is dropped. Events still fire as normal; nothing else on the page changes behaviour.
+`anti-pause.js` installs an accessor on `window.player` at `document_start`, before the page's own script assigns it, and wraps the instance's `pause` on the way through. The wrapper allows a pause only if a `click`, `keydown`, `touchstart`, or `pointerdown` happened within the last 700 ms (adjustable in the popup) — so a deliberate pause passes and a focus-driven one is dropped. Events still fire as normal; nothing else on the page changes behaviour.
 
 This requires the script to run in the **main world**, since an isolated-world content script gets its own `window` and cannot see the page's `player` global.
 
@@ -42,9 +46,11 @@ A second fallback layer watches for `pause` events in the capture phase and resu
 | File | World | Timing | Purpose |
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
-| `pages.js` | isolated | `document_end` | Shared page detection (home / list) |
+| `settings.js` | isolated | `document_end` | Settings from `chrome.storage.sync` (shared with the popup) |
+| `pages.js` | isolated | `document_end` | Shared page detection (home / list / video) |
 | `hero.js` | isolated | `document_end` | Cover carousel on the home page, `/dm<n>/*`, `/saved` |
-| `browse.js` + `browse.css` | isolated | `document_end` | Home rows and list toolbar |
+| `browse.js` + `browse.css` | isolated | `document_end` | Layout, rows, list toolbar and pagination, video page, scroll reveal |
+| `popup.html` / `.css` / `.js` | — | — | Settings popup |
 
 ## Limitations
 

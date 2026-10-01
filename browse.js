@@ -1,18 +1,42 @@
-(function () {
+(async function () {
     // 全站左右留白、首頁 Netflix 式橫列、列表頁把過濾／排序攤開成按鈕、影片頁劇院式版面。
     //
     // 排版全部在 browse.css：vh-wide 掛在所有有 layout root 的頁面（只管左右留白），
-    // 其餘規則掛在 html.vh-home / vh-list / vh-video 底下。
+    // 改版規則掛在 html.vh-home / vh-list / vh-video 底下（該組設定開著才加），
+    // 可以即時開關的掛在 applySettings() 寫的 class / CSS 變數底下。
     // 這裡只做 CSS 做不到的事：標記哪些網格要變橫列、插自己的節點、量尺寸。
     // 不寫任何 Alpine 會用 x-show 控制的 display —— 見 CLAUDE.md 登入 modal 那段。
+    const html = document.documentElement;
+    await VHS.ready;
+
+    // 防暫停的設定：anti-pause.js 在 MAIN world 讀不到 chrome.storage，從 <html> 的 data 屬性讀。
+    // 影片頁才用得到，但每一頁都寫，不依賴下面的頁面判斷
+    function applyAntiPause() {
+        html.dataset.vhAntiPause = JSON.stringify({
+            on: VHS.get("antiPause"),
+            gestureMs: VHS.get("gestureMs"),
+            fallback: VHS.get("fallbackResume"),
+        });
+    }
+    applyAntiPause();
+    VHS.subscribe(applyAntiPause);
+
     const kind = VH.kind();
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
     if (!root) return;
-    document.documentElement.classList.add("vh-wide");
+    html.classList.add("vh-wide");
     if (!kind) return;
-    document.documentElement.classList.add(`vh-${kind}`);
+    html.dataset.vhKind = kind;         // 廣告這類跟改版開關無關的規則用它認頁面
 
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+    // 會改 DOM 結構的設定只在載入時讀一次，popup 改了要重新整理（settings.js 的 RELOAD）
+    const restyle = VHS.on(kind);       // 設定 key 剛好就是 home / list / video
+    if (restyle) html.classList.add(`vh-${kind}`);
+    const ROWS = restyle && (kind === "video" || VHS.on("homeRows"));
+    const CHIPS = kind === "list" && restyle && VHS.on("listChips");
+    const PAGER = kind === "list" && restyle && VHS.on("listPager");
+
+    const reduced = () => VHS.reduced();
+    const heroOn = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
 
     // ── 頁首高度 ──────────────────────────────────────────────
     // 頁首是 fixed 的；sticky 工具列要停在它下面，首頁 hero 要往上鑽到它底下
@@ -73,7 +97,7 @@
 
             const step = dir => grid.scrollBy({
                 left: dir * grid.clientWidth * 0.9,
-                behavior: reduced.matches ? "auto" : "smooth",
+                behavior: reduced() ? "auto" : "smooth",
             });
             prev.addEventListener("click", () => step(-1));
             next.addEventListener("click", () => step(1));
@@ -97,7 +121,7 @@
                 e.preventDefault();
                 const a = cardTitle(to) || to.querySelector("a[href]");
                 a?.focus({ preventScroll: true });
-                to.scrollIntoView({ inline: "nearest", block: "nearest", behavior: reduced.matches ? "auto" : "smooth" });
+                to.scrollIntoView({ inline: "nearest", block: "nearest", behavior: reduced() ? "auto" : "smooth" });
             });
         });
         layoutRows();
@@ -189,7 +213,7 @@
             bar.append(group);
         }
 
-        const page = pageInfo();
+        const page = PAGER ? pageInfo() : null;
         if (page) bar.append(miniPager(page));
 
         old.before(bar);
@@ -401,9 +425,9 @@
     }
 
     // ── 卡片：hover 放大的原點 ────────────────────────────────
-    // 放大 1.3 倍，靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
+    // 放大（預設 1.3 倍，設定 homeZoom，CSS 的 --vh-zoom 由 applySettings 寫）時，
+    // 靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
     // 進入卡片時量一次：左邊不夠就從左緣放大、右邊不夠就從右緣。CSS 有 0.3s 延遲，量的時候還沒放大
-    const ZOOM = 1.3;               // 跟 browse.css 的 --vh-zoom 一起改
     root.addEventListener("pointerover", e => {
         const card = e.target.closest?.(".thumbnail");
         if (!card || card.contains(e.relatedTarget)) return;
@@ -412,7 +436,7 @@
         const box = row ? row.getBoundingClientRect() : { left: 0, right: Infinity };
         const left = Math.max(box.left, 0);
         const right = Math.min(box.right, document.documentElement.clientWidth);
-        const grow = r.width * (ZOOM - 1) / 2;
+        const grow = r.width * (VHS.get("homeZoom") - 1) / 2;
         card.style.transformOrigin =
             r.left - grow < left ? "left center" :
             r.right + grow > right ? "right center" : "";
@@ -434,11 +458,11 @@
     // ── 卡片：捲動進場 ────────────────────────────────────────
     // 卡片進入畫面時淡入上浮一次（browse.css 的 .vh-rv / .vh-in），同一批依畫面順序（上到下、左到右）錯開。
     // 動的是卡片在網格／橫列裡的那一格（可能就是 .thumbnail 本身）；只動 opacity 和 translate，不碰 display。
-    // 演完把 class 拿掉，卡片回到原本的樣式，不留多餘的 transition
-    const REVEAL_MS = 800;          // 跟 browse.css 的 .vh-rv 一起改
-    const REVEAL_GAP = 150;
+    // 演完把 class 拿掉，卡片回到原本的樣式，不留多餘的 transition。
+    // 間隔、長度來自設定（revealGap / revealMs；長度同時寫成 CSS 的 --vh-rv-ms）
+    const revealOn = () => VHS.on("reveal") && !reduced();
     let revealBatch = [];
-    const revealIO = reduced.matches ? null : new IntersectionObserver(entries => {
+    const revealIO = new IntersectionObserver(entries => {
         for (const e of entries) {
             if (!e.isIntersecting) continue;
             revealIO.unobserve(e.target);
@@ -451,21 +475,23 @@
         const items = revealBatch.map(el => ({ el, r: el.getBoundingClientRect() }));
         revealBatch = [];
         items.sort((a, b) => Math.round(a.r.top - b.r.top) || a.r.left - b.r.left);
+        const gap = VHS.get("revealGap");
+        const ms = VHS.get("revealMs");
         items.forEach(({ el }, i) => {
-            const delay = Math.min(i, 8) * REVEAL_GAP;
+            const delay = Math.min(i, 8) * gap;
             el.style.setProperty("--vh-rv-d", `${delay}ms`);
             el.classList.add("vh-in");
             setTimeout(() => {
                 el.classList.remove("vh-rv", "vh-in");
                 el.style.removeProperty("--vh-rv-d");
-            }, delay + REVEAL_MS + 50);
+            }, delay + ms + 50);
         });
     }
 
     // 首頁、列表頁的 hero 是之後才插進來的。插進來之前卡片就在第一屏，一觀察就演完了，
     // 等 hero 把它們推到下面，使用者捲下去看到的是已經出現好的卡片。
     // 所以先只標 .vh-rv（藏起來），等 hero 就位（或等不到它）才開始觀察
-    let revealReady = kind === "video";
+    let revealReady = kind === "video" || !heroOn();
     const pending = [];
     if (!revealReady) setTimeout(() => startReveal(), 3000);   // 保險：沒有可輪播的卡片時 hero 不會出現
 
@@ -476,8 +502,19 @@
         requestAnimationFrame(() => pending.splice(0).forEach(u => revealIO.observe(u)));
     }
 
+    // 設定關掉時：還藏著的卡片立刻出現，之後也不再標
+    function clearReveal() {
+        pending.length = 0;
+        revealBatch = [];
+        root.querySelectorAll(".vh-rv").forEach(el => {
+            revealIO.unobserve(el);
+            el.classList.remove("vh-rv", "vh-in");
+            el.style.removeProperty("--vh-rv-d");
+        });
+    }
+
     function initReveal() {
-        if (!revealIO) return;
+        if (!revealOn()) return;
         root.querySelectorAll(".thumbnail").forEach(card => {
             const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
             if (unit.dataset.vhRv) return;
@@ -501,26 +538,70 @@
         }
     }
 
+    // ── 設定：即時套用的部分 ──────────────────────────────────
+    // 全部寫成 <html> 的 class / CSS 變數，browse.css 掛在它們底下；popup 改設定時重跑
+    function applySettings() {
+        const on = k => VHS.on(k);
+        const cls = (name, v) => html.classList.toggle(name, Boolean(v));
+        const css = (name, v) => html.style.setProperty(name, String(v));
+
+        cls("vh-reduce", reduced());
+        cls("vh-hide-ads", on("hideAds"));
+        cls("vh-hide-search", on("homeHideSearch"));
+
+        const per = VHS.get("homePer");
+        cls("vh-per-fixed", per !== "auto");
+        if (per !== "auto") css("--vh-per-n", Number(per) + 0.4);      // 多 0.4 張是故意露出的下一張
+        css("--vh-zoom", VHS.get("homeZoom"));
+        for (const n of ["2", "3", "4"]) cls(`vh-cols-${n}`, on("list") && VHS.get("listCols") === n);
+
+        const video = kind === "video" && restyle;
+        cls("vh-theater", video && on("videoTheater"));
+        css("--vh-player-gap", `${VHS.get("videoGap")}px`);
+        cls("vh-hide-promo", video && on("videoHidePromo"));
+        const ambient = video && on("ambient");
+        cls("vh-ambient", ambient);
+        cls("vh-breathe", ambient && on("breathe"));
+        const a = VHS.get("ambientAlpha");
+        css("--vh-halo-a", a);
+        css("--vh-top-a", Math.min(1, a + 0.05));
+        // 全頁染色：影片頁跟著環境光；首頁、列表頁要輪播開著且選了「背景跟著封面換色」
+        cls("vh-tint", on("look") && (kind === "video" ? ambient : heroOn() && on("heroTint")));
+        css("--vh-wash-a", VHS.get("washAlpha"));
+        cls("vh-glass", video && on("glass"));
+        css("--vh-rv-ms", `${VHS.get("revealMs")}ms`);
+        if (!revealOn()) clearReveal();
+    }
+
     // ── 啟動 ──────────────────────────────────────────────────
     function refresh() {
         if (kind === "home") {
-            initRows();
+            if (ROWS) initRows();
             placeHero();
         } else if (kind === "video") {
-            initAmbient();
-            measurePlayer();
-            initSide();
-            initRows();
+            if (restyle) {
+                initAmbient();
+                measurePlayer();
+                initSide();
+                initRows();
+            }
         } else {
-            initToolbar();
-            initPager();
+            if (CHIPS) initToolbar();
+            if (PAGER) initPager();
             placeHero();
         }
         tidyCards();
         initReveal();               // 在 initRows 之後：要先知道哪些網格變成橫列
     }
 
+    applySettings();
     refresh();
+    VHS.subscribe(() => {
+        applySettings();
+        initReveal();                           // 捲動進場剛被打開時，從現在起的卡片開始標
+        if (kind !== "video") placeHero();      // 輪播開關、高度會改 hero 的尺寸
+        layoutRows();
+    });
 
     // 推薦區、hero 都是之後才渲染進來的。只盯 layout root，不盯整個 body
     let queued = false;
@@ -533,7 +614,7 @@
     addEventListener("resize", () => {
         if (kind !== "video") placeHero();
         if (kind === "list") return;
-        if (kind === "video") measurePlayer();
+        if (kind === "video" && restyle) measurePlayer();
         layoutRows();
     });
 })();

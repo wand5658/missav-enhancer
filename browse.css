@@ -1,6 +1,9 @@
 /* 全站留白、首頁橫列、列表頁工具列、影片頁版面。content_scripts 的 css 會注入站上每一頁，
  * 所以每條規則都限定在 browse.js 加在 <html> 上的 class 底下：
- * vh-wide（所有有 layout root 的頁面，只管左右留白）、vh-home / vh-list / vh-video。
+ * vh-wide（所有有 layout root 的頁面，只管左右留白）、vh-home / vh-list / vh-video（該頁改版開著），
+ * 以及 applySettings() 依 popup 設定即時切換的 class（vh-hide-ads、vh-theater、vh-ambient、vh-reduce…）
+ * 和 CSS 變數（--vh-zoom、--vh-player-gap、--vh-halo-a…，寫在 <html> 的 inline style，蓋過這裡的預設）。
+ * 頁面種類另外寫在 data-vh-kind，給跟改版開關無關的規則（廣告、搜尋框）用。
  *
  * 不寫被 x-show 控制的元素的 display：Alpine 靠 inline display 開關它們，
  * 這裡一蓋就跟它搶同一個屬性（CLAUDE.md 的登入 modal 事件）。 */
@@ -31,25 +34,24 @@ html.vh-home .is-home .sm\:container {
 }
 
 /* ── 廣告收掉 ──────────────────────────────────────────────── */
-html.vh-home .pt-16.pb-4.px-4:has(iframe),
-html.vh-home .fixed.right-2.bottom-2:has(iframe),
-html.vh-list .fixed.right-2.bottom-2:has(iframe),
-html.vh-video .fixed.right-2.bottom-2:has(iframe),
-html.vh-video .under_player,
-html.vh-video [data-vh-section] > div:has(> iframe),
-html.vh-video div.order-last div.space-y-6:has(iframe) {
+/* 設定「隱藏頁面廣告」：跟各頁改版開關無關，所以用 data-vh-kind 認頁面、不依賴 browse.js 標的屬性 */
+html.vh-hide-ads[data-vh-kind="home"] .pt-16.pb-4.px-4:has(iframe),
+html.vh-hide-ads .fixed.right-2.bottom-2:has(iframe),
+html.vh-hide-ads[data-vh-kind="video"] .under_player,
+html.vh-hide-ads[data-vh-kind="video"] div.relative.overflow-hidden > div:has(> iframe),
+html.vh-hide-ads[data-vh-kind="video"] div.order-last div.space-y-6:has(iframe) {
     display: none;
 }
 
 /* ── 首頁：大搜尋框收掉（頁首的搜尋還在）──────────────────
  * 這個容器只有 :class 綁 pb-8，沒有 x-show，可以直接藏 */
-html.vh-home .is-home > div.flex-col:has(> div > form) {
+html.vh-hide-search[data-vh-kind="home"] .is-home > div.flex-col:has(> div > form) {
     display: none;
 }
 
 /* 推薦區的「載入更多」原本是 absolute，浮在下面廣告的 pt-16 留白上；
  * 廣告收掉後會疊到下一區底下點不到。改回文件流，只動 position —— 它的 display 歸 x-show 管 */
-html.vh-home [data-vh-section] + div.absolute.w-full.text-center {
+html.vh-hide-ads[data-vh-kind="home"] div:has(> div.grid) + div.absolute.w-full.text-center {
     position: relative;         /* 疊在上一列的 --lift 上面才點得到 */
     z-index: 5;
     padding: 0 0 4px;
@@ -69,19 +71,19 @@ html.vh-video [data-vh-row] .thumbnail {
 }
 
 /* 停一下才放大，滑過去不會整排跳動。放大後會壓到隔壁，所以給一塊底色當面板 */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-    html.vh-home .thumbnail:hover,
-    html.vh-list .thumbnail:hover,
-    html.vh-video [data-vh-row] .thumbnail:hover {
+@media (hover: hover) {
+    html.vh-home:not(.vh-reduce) .thumbnail:hover,
+    html.vh-list:not(.vh-reduce) .thumbnail:hover,
+    html.vh-video:not(.vh-reduce) [data-vh-row] .thumbnail:hover {
         z-index: 6;
         transform: scale(var(--vh-zoom));
         background-color: var(--vh-panel);
         box-shadow: 0 14px 36px rgba(0, 0, 0, .55);
         transition-delay: .3s;
     }
-    html.vh-home .thumbnail:hover .my-2,
-    html.vh-list .thumbnail:hover .my-2,
-    html.vh-video [data-vh-row] .thumbnail:hover .my-2 { padding: 0 8px 4px; }
+    html.vh-home:not(.vh-reduce) .thumbnail:hover .my-2,
+    html.vh-list:not(.vh-reduce) .thumbnail:hover .my-2,
+    html.vh-video:not(.vh-reduce) [data-vh-row] .thumbnail:hover .my-2 { padding: 0 8px 4px; }
 }
 
 /* 標題從一行截斷改成兩行；固定兩行高，同一列的卡片才對得齊 */
@@ -185,6 +187,8 @@ html.vh-home [data-vh-section] a.text-nord4:hover {
 @media (min-width: 768px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 2.6; } }
 @media (min-width: 1280px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 3.4; } }
 @media (min-width: 1600px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 4.4; } }
+/* 設定「每列卡片」選了固定數字（--vh-per-n 已含露出的 0.4 張），只影響首頁 */
+html.vh-home.vh-per-fixed [data-vh-row] { --per: var(--vh-per-n); }
 
 /* 箭頭：top / height 由 browse.js 對齊橫列；平常隱形，滑到區塊上才出現 */
 :is(html.vh-home, html.vh-video) .vh-arrow {
@@ -223,19 +227,23 @@ html.vh-video [data-vh-section]:hover .vh-arrow { opacity: 1; }
 /* ── 列表頁 ────────────────────────────────────────────── */
 html.vh-list .vh-gone { display: none; }
 
-/* 卡片放大：原本 2 / 3 / 4 欄，改成 1 / 2 / 3 欄 */
-html.vh-list .content-without-search > div.grid,
-html.vh-list .content-with-search > div.grid {
+/* 每列欄數（設定 listCols）：網站原本 2 / 3 / 4 欄；選「網站預設」就沒有 vh-cols-* class，不覆寫。
+ * 窄螢幕一律 1 / 2 欄，寬螢幕才到選的欄數 */
+html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid {
     gap: 24px;
     grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 640px) {
-    html.vh-list .content-without-search > div.grid,
-    html.vh-list .content-with-search > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1280px) {
-    html.vh-list .content-without-search > div.grid,
-    html.vh-list .content-with-search > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-3 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1440px) {
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 html.vh-list .content-without-search > h1,
@@ -481,26 +489,27 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 /* 文字區不要拉到整個寬螢幕，一行太長不好讀 */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :is(div.mt-4, div[x-show*="share"], div[x-show*="playlist"], div.mb-8) { max-width: 1280px; }
 
-/* 頁首和播放器之間：網站的 layout root 上內距是固定的 80px（窄螢幕 56px），比頁首高出一截；
+/* 劇院式版面（設定 videoTheater → vh-theater）：
+ * 頁首和播放器之間：網站的 layout root 上內距是固定的 80px（窄螢幕 56px），比頁首高出一截；
  * 改成頁首高度再留 8px */
-html.vh-video :is(div.content-without-search, div.content-with-search) {
+html.vh-theater :is(div.content-without-search, div.content-with-search) {
     padding-top: calc(var(--vh-header, 56px) + 8px);
 }
 
-/* 劇院底帶：撐到視窗兩邊；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度。
- * 底色透明，讓後面的環境光透出來（見下方「環境光」）；overflow-x: clip 切掉光暈左右溢出，
+/* 劇院底帶：撐到視窗兩邊的黑底；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度。
+ * 開著環境光時底色改透明，讓後面的光透出來（見下方「環境光」）；overflow-x: clip 切掉光暈左右溢出，
  * 不然窄視窗會多出橫向捲軸 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
-    /* 影片底部離視窗底線留 --vh-player-gap；--vh-player-top 是播放器在文件裡的頂端位置（browse.js 量），
-     * 不能只扣頁首高度：播放器上面還有 layout root 的上內距，扣不夠會被視窗底線切掉 */
-    --vh-player-gap: 12px;
-    --vh-player-w: max(480px, calc((100vh - var(--vh-player-top, var(--vh-header, 0px)) - var(--vh-player-gap)) * 16 / 9));
+html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
+    /* 影片底部離視窗底線留 --vh-player-gap（設定 videoGap，寫在 <html>）；--vh-player-top 是播放器在文件裡的
+     * 頂端位置（browse.js 量），不能只扣頁首高度：播放器上面還有 layout root 的上內距，扣不夠會被視窗底線切掉 */
+    --vh-player-w: max(480px, calc((100vh - var(--vh-player-top, var(--vh-header, 0px)) - var(--vh-player-gap, 12px)) * 16 / 9));
     margin-left: calc(-1 * var(--vh-gutter));
     margin-right: calc(-1 * var(--vh-gutter));
     padding: 0 var(--vh-gutter);
     overflow-x: clip;
+    background: #000;
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > * {
+html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > * {
     max-width: var(--vh-player-w);
     margin-left: auto;
     margin-right: auto;
@@ -537,7 +546,7 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 /* 詳情：推廣連結收掉；每列「標籤＋值」用懸掛縮排對齊，值改膠囊。
  * 父層 font-size: 0 是為了藏掉連結之間的純文字逗號，子元素再設回字級。
  * 所以縮排寬度不能用 em：父層的 em 會變成 0，標籤的 em 卻是 14px，標籤會被推出版面 */
-html.vh-video [x-show="currentTab === 'video_details'"] ul.list-none { display: none; }
+html.vh-hide-promo [x-show="currentTab === 'video_details'"] ul.list-none { display: none; }
 html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary {
     --vh-label-w: 88px;
     display: flex;
@@ -619,14 +628,15 @@ html.vh-video [data-vh-section] {
  * body 的負 z-index 偽元素畫在畫布之上、內容之下。全部是偽元素，不插 DOM。
  * 由下往上：全頁染色 -3、暗角 -2、上半部 -1，都在根 stacking context；
  * 所以播放器底帶不能 isolate，不然上半部那層會變成正常圖層，蓋到底下的標題和詳情 */
-html.vh-video {
+html.vh-ambient {
     --vh-halo-a: .85;
     --vh-top-a: .9;
 }
-/* 全頁染色和暗角也用在首頁、列表頁：--vh-cover 由 hero.js 換成目前輪播那張，
+/* 全頁染色和暗角（vh-tint）：影片頁跟著環境光開關；首頁、列表頁要輪播開著且選了「背景跟著封面換色」，
+ * --vh-cover 由 hero.js 換成目前輪播那張。
  * Chrome 會對 background-image 的 transition 做交叉淡化，換片時顏色慢慢過去 */
-:is(html.vh-home, html.vh-list, html.vh-video) { --vh-wash-a: .55; }
-:is(html.vh-home, html.vh-list, html.vh-video) body::before {
+html.vh-tint { --vh-wash-a: .55; }
+html.vh-tint body::before {
     content: "";
     position: fixed;
     inset: -20%;
@@ -637,7 +647,7 @@ html.vh-video {
     opacity: var(--vh-wash-a);
     transition: background-image 1.5s ease;
 }
-:is(html.vh-home, html.vh-list, html.vh-video) body::after {
+html.vh-tint body::after {
     content: "";
     position: fixed;
     inset: 0;
@@ -649,7 +659,7 @@ html.vh-video {
 }
 /* 上半部那層掛在播放器底帶上：它就在頁頂，跟著捲走；
  * 盒子不超出底帶寬度（blur 的溢出不算捲動範圍），往下由 mask 淡出 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child::before {
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child::before {
     content: "";
     position: absolute;
     left: 0;
@@ -664,10 +674,10 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
     -webkit-mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
             mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { position: relative; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { position: relative; }
 /* 播放器光暈：墊在播放器外框（第一個子元素）後面 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child { position: relative; isolation: isolate; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before {
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child { position: relative; isolation: isolate; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -678,32 +688,32 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
     transform: scale(1.12, 1.18);
     opacity: var(--vh-halo-a);
 }
-@media (prefers-reduced-motion: no-preference) {
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before { animation: vh-breathe 9s ease-in-out infinite alternate; }
-}
+/* 光暈呼吸（設定 breathe），減少動態效果時不動 */
+html.vh-breathe:not(.vh-reduce) :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before { animation: vh-breathe 9s ease-in-out infinite alternate; }
 @keyframes vh-breathe {
     from { transform: scale(1.08, 1.12); opacity: calc(var(--vh-halo-a) * .75); }
     to   { transform: scale(1.16, 1.24); opacity: var(--vh-halo-a); }
 }
 /* 光暈放大後會溢出播放器下緣，循環播放列、手機快轉列要疊在它上面 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:not(:first-child) { position: relative; z-index: 1; }
-/* 循環播放列原本黑底，會在光暈中間切出一條黑帶 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div.bg-black { background: transparent; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:not(:first-child) { position: relative; z-index: 1; }
+/* 劇院底帶和循環播放列原本黑底，會在光暈中間切出黑帶 */
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child,
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div.bg-black { background: transparent; }
 
 /* 玻璃面板：半透明＋背景模糊，透出底下的色調 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button,
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button,
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
     background: rgba(255, 255, 255, .055);
     border: 1px solid rgba(255, 255, 255, .08);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
             backdrop-filter: blur(16px) saturate(1.3);
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(255, 255, 255, .12); }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(255, 255, 255, .12); }
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
     padding: 16px 20px;
     border-radius: 12px;
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 { text-shadow: 0 1px 12px rgba(0, 0, 0, .4); }
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 { text-shadow: 0 1px 12px rgba(0, 0, 0, .4); }
 
 /* ── 卡片捲動進場（browse.js 的 initReveal）────────────────
  * 進場前透明、往下 28px；加上 .vh-in 淡入上浮，--vh-rv-d 是同一批裡的錯開延遲。
@@ -713,24 +723,22 @@ html.vh-wide .vh-rv {
     opacity: 0;
     translate: 0 28px;
     transition:
-        opacity .8s ease var(--vh-rv-d, 0ms),
-        translate .8s cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms);
+        opacity var(--vh-rv-ms, 800ms) ease var(--vh-rv-d, 0ms),
+        translate var(--vh-rv-ms, 800ms) cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms);
 }
 html.vh-wide .thumbnail.vh-rv {
     transition:
-        opacity .8s ease var(--vh-rv-d, 0ms),
-        translate .8s cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms),
+        opacity var(--vh-rv-ms, 800ms) ease var(--vh-rv-d, 0ms),
+        translate var(--vh-rv-ms, 800ms) cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms),
         transform .2s ease, box-shadow .2s ease, background-color .2s ease;
 }
 html.vh-wide .vh-rv.vh-in { opacity: 1; translate: none; }
 
-@media (prefers-reduced-motion: reduce) {
-    html.vh-home .thumbnail,
-    html.vh-list .thumbnail,
-    html.vh-video [data-vh-row] .thumbnail,
-    html.vh-video .vh-arrow,
-    html.vh-video .vh-arrow svg,
-    html.vh-home .vh-arrow,
-    html.vh-home .vh-arrow svg,
-    html.vh-list .vh-chip { transition: none; }
-}
+/* 減少動態效果：設定或系統偏好（browse.js 依 motion 設定加 vh-reduce；「完整」會蓋過系統偏好） */
+html.vh-reduce.vh-home .thumbnail,
+html.vh-reduce.vh-list .thumbnail,
+html.vh-reduce.vh-video [data-vh-row] .thumbnail,
+html.vh-reduce .vh-arrow,
+html.vh-reduce .vh-arrow svg,
+html.vh-reduce .vh-chip,
+html.vh-reduce :is(.vh-big, .vh-num, .vh-mini-arrow) { transition: none; }

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Video Helper</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="head">
+    <img src="icons/icon-48.png" alt="">
+    <div><b>Video Helper</b><div class="ver" id="ver"></div></div>
+    <div class="site" id="site"><span class="dot"></span><span id="siteText"></span></div>
+</div>
+<div class="reload" id="reload" hidden>
+    <span id="reloadText"></span>
+    <button type="button" id="reloadBtn"></button>
+</div>
+<div class="body" id="body"></div>
+<div class="foot">
+    <button type="button" id="reset"></button>
+    <button type="button" id="export"></button>
+    <button type="button" id="import"></button>
+    <input type="file" id="file" accept="application/json,.json" hidden>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script src="settings.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
