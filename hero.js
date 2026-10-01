@@ -10,6 +10,8 @@
     const LAYOUT_ROOT = VH.LAYOUT_ROOT;
 
     const SLIDE_MS = 12000;         // 每張停多久（進度條的動畫就是時鐘）
+    const SWAP_MS = 800;            // 切換動畫的時間
+    const FX = ["parallax", "zoom", "flip"];    // 每次切換隨機挑一個，規則在下面 CSS 的 .slide[data-fx]
     const POOL_MAX = 40;
     const MIN_VISIBLE = 0.5;        // hero 露出不到一半就整個暫停
 
@@ -107,6 +109,7 @@
 </section>`;
         const hero = shadow.querySelector(".hero");
         hero.style.setProperty("--slide", `${SLIDE_MS}ms`);
+        hero.style.setProperty("--swap", `${SWAP_MS}ms`);
         ui = {
             hero,
             stage: shadow.querySelector(".stage"),
@@ -224,13 +227,23 @@
 
                 const next = slide(item, cover);
                 ui.stage.append(next);
-                next.getBoundingClientRect();       // 先排版一次，淡入的 transition 才會跑
                 const olds = [...ui.stage.children].filter(c => c !== next);
+                // 第一張沒有 data-fx，直接出現。之後每次隨機挑一種動畫，新舊兩張用同一種；
+                // 方向：下一部從右邊進、舊的往左出，上一部反過來
+                if (olds.length) {
+                    const fx = FX[Math.floor(Math.random() * FX.length)];
+                    const dir = step < 0 ? -1 : 1;
+                    for (const el of [next, ...olds]) {
+                        el.dataset.fx = fx;
+                        el.style.setProperty("--dir", dir);
+                    }
+                    next.getBoundingClientRect();   // 先排版一次（停在起始狀態），transition 才會跑
+                }
                 next.dataset.on = "1";
                 olds.forEach(o => {
                     o.dataset.on = "0";
-                    // 舊的淡出完再停影片，停在最後一格淡掉而不是跳回封面
-                    setTimeout(() => { stopVideo(o); o.remove(); }, 700);
+                    // 舊的推出去再停影片，停在最後一格離開而不是跳回封面
+                    setTimeout(() => { stopVideo(o); o.remove(); }, SWAP_MS + 100);
                 });
 
                 ui.hero.hidden = false;
@@ -309,12 +322,48 @@
 :host([data-bleed]) .slide::after { background: linear-gradient(90deg, rgba(27, 30, 37, .15) 30%, rgba(27, 30, 37, .7)); }
 .stage { position: absolute; inset: 0; }
 .slide {
+    --dir: 1;
+    --ease: cubic-bezier(.65, 0, .35, 1);
     position: absolute;
     inset: 0;
-    opacity: 0;
-    transition: opacity .6s ease;
 }
-.slide[data-on="1"] { opacity: 1; }
+
+/* ── 切換動畫（show() 每次隨機挑一種寫進 data-fx）──────────
+ * 起始狀態是 [data-fx]:not([data-on])，上場 data-on="1"，下場 data-on="0"。
+ * .bg 的 transform 被 drift 動畫佔走、.text 也可能有動畫，所以位移用獨立的 translate 屬性，跟 transform 疊加 */
+
+/* 視差：底圖、畫框、文字三層速度不同 */
+.slide[data-fx="parallax"] :is(.bg, .frame, .text) {
+    transition: translate var(--swap) var(--ease), opacity var(--swap) var(--ease);
+}
+.slide[data-fx="parallax"]:not([data-on]) .bg { translate: calc(var(--dir) * 100%) 0; }
+.slide[data-fx="parallax"]:not([data-on]) .frame { translate: calc(var(--dir) * 140%) 0; }
+.slide[data-fx="parallax"]:not([data-on]) .text { translate: calc(var(--dir) * 260%) 0; }
+.slide[data-fx="parallax"][data-on="0"] .bg { translate: calc(var(--dir) * -40%) 0; opacity: .3; }
+.slide[data-fx="parallax"][data-on="0"] .frame { translate: calc(var(--dir) * -140%) 0; }
+.slide[data-fx="parallax"][data-on="0"] .text { translate: calc(var(--dir) * -260%) 0; }
+
+/* 穿越：舊的衝向鏡頭散掉（疊在上面），新的從後方浮上來 */
+.slide[data-fx="zoom"] {
+    transition: transform var(--swap) var(--ease), opacity var(--swap) var(--ease), filter var(--swap) var(--ease);
+}
+.slide[data-fx="zoom"]:not([data-on]) { transform: scale(.85); opacity: 0; filter: blur(8px); }
+.slide[data-fx="zoom"][data-on="0"] { z-index: 1; transform: scale(1.3); opacity: 0; filter: blur(12px); }
+
+/* 3D 翻卡：畫框像翻牌一樣轉過去，底圖交叉淡化，文字上下錯開 */
+.slide[data-fx="flip"] { transition: opacity var(--swap) var(--ease); }
+.slide[data-fx="flip"]:not([data-on]),
+.slide[data-fx="flip"][data-on="0"] { opacity: 0; }
+.slide[data-fx="flip"] .link { perspective: 1400px; }
+.slide[data-fx="flip"] .frame {
+    backface-visibility: hidden;
+    transition: transform var(--swap) var(--ease), opacity var(--swap) var(--ease);
+}
+.slide[data-fx="flip"] .text { transition: translate var(--swap) var(--ease), opacity var(--swap) var(--ease); }
+.slide[data-fx="flip"]:not([data-on]) .frame { transform: rotateY(calc(var(--dir) * 75deg)) translateX(calc(var(--dir) * 30%)); opacity: 0; }
+.slide[data-fx="flip"][data-on="0"] .frame { transform: rotateY(calc(var(--dir) * -75deg)) translateX(calc(var(--dir) * -30%)); opacity: 0; }
+.slide[data-fx="flip"]:not([data-on]) .text { translate: 0 24px; opacity: 0; }
+.slide[data-fx="flip"][data-on="0"] .text { translate: 0 -24px; opacity: 0; }
 
 /* 封面鋪滿當底圖：只輕微模糊，壓暗但看得出是哪張圖 */
 .bg {
@@ -393,11 +442,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-}
-.slide[data-on="1"] .text { animation: rise .7s .12s cubic-bezier(.2, .7, .2, 1) both; }
-@keyframes rise {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: none; }
 }
 .tag { font-size: 12px; letter-spacing: .04em; color: var(--ink-dim); }
 .title {
@@ -495,7 +539,7 @@
 
 /* 進度條留著：它是資訊（多久換下一部），不是裝飾；預覽影片在 sync() 裡就不播 */
 @media (prefers-reduced-motion: reduce) {
-    .slide, .frame video, .nav, .open { transition: none; }
+    .slide, .slide *, .frame video, .nav, .open { transition: none !important; }
     .bg, .frame img, .text { animation: none !important; }
 }
 `;
