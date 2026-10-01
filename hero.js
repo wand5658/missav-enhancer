@@ -96,8 +96,8 @@
     function build() {
         host = document.createElement("div");
         host.setAttribute("data-video-helper", "hero");
-        // 首頁滿版、頂到頁首底下；位置由 browse.js 量，這裡只切換內部樣式
-        if (kind === "home") host.setAttribute("data-bleed", "");
+        // 首頁、列表頁都滿版、頂到頁首底下；位置由 browse.js 量，這裡只切換內部樣式
+        host.setAttribute("data-bleed", "");
         const shadow = host.attachShadow({ mode: "open" });
         shadow.innerHTML = `<style>${CSS}</style>
 <section class="hero" hidden>
@@ -121,12 +121,11 @@
         shadow.querySelector(".prev").addEventListener("click", () => show(-1));
         shadow.querySelector(".next").addEventListener("click", () => show(1));
 
-        // hover / 鍵盤焦點在裡面：只停進度條，預覽影片照播 —— 停下來就是想看它
-        hero.addEventListener("mouseenter", () => setPaused(true));
-        hero.addEventListener("mouseleave", () => setPaused(hero.contains(shadow.activeElement)));
-        hero.addEventListener("focusin", () => setPaused(true));
+        // 滑鼠 hover 不暫停。只有鍵盤焦點在裡面時停進度條（預覽影片照播），不然 Tab 到「前往觀看」前就換片了。
+        // 用 :focus-visible 判斷：滑鼠點上一部 / 下一部也會讓按鈕拿到焦點，那種不算
+        hero.addEventListener("focusin", e => setPaused(e.target.matches(":focus-visible")));
         hero.addEventListener("focusout", e => {
-            if (!hero.contains(e.relatedTarget)) setPaused(hero.matches(":hover"));
+            if (!hero.contains(e.relatedTarget)) setPaused(false);
         });
         document.addEventListener("visibilitychange", sync);
         reduced.addEventListener("change", sync);
@@ -166,9 +165,20 @@
         bg.className = "bg";
         bg.style.backgroundImage = `url("${cover}")`;
 
-        const link = document.createElement("a");
+        // 不用 <a href>：整張都是連結，滑鼠停在上面瀏覽器左下角會一直顯示網址。
+        // 改成 role="link" 自己處理點擊；Ctrl/⌘/Shift 點、中鍵照樣開新分頁
+        const link = document.createElement("div");
         link.className = "link";
-        link.href = item.href;
+        link.setAttribute("role", "link");
+        link.tabIndex = 0;
+        const open = e => {
+            if (!item.href) return;
+            if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) window.open(item.href, "_blank", "noopener");
+            else location.href = item.href;
+        };
+        link.addEventListener("click", open);
+        link.addEventListener("auxclick", e => { if (e.button === 1) open(e); });
+        link.addEventListener("keydown", e => { if (e.key === "Enter") open(e); });
 
         const frame = document.createElement("div");
         frame.className = "frame";
@@ -310,7 +320,8 @@
 }
 .hero[hidden] { display: none; }
 /* 滿版時頁首（固定、透明漸層）疊在上面：高度和上緣留白都加上頁首高度，--vh-header 由 browse.js 寫在 <html> 上 */
-:host([data-bleed]) .hero { border-radius: 0; height: calc(var(--h) + var(--vh-header, 0px)); }
+/* 滿版時占滿整個視窗：--h 是頁首以下的高度（畫框尺寸用它算），加回頁首剛好 100vh */
+:host([data-bleed]) .hero { --h: calc(100vh - var(--vh-header, 0px)); border-radius: 0; height: calc(var(--h) + var(--vh-header, 0px)); }
 :host([data-bleed]) .link { padding-top: calc(32px + var(--vh-header, 0px)); }
 /* 滿版時下緣淡進頁面背景（browse.css 用目前封面染色的那層），不切出一條硬邊 */
 :host([data-bleed]) .hero { background: transparent; }
@@ -388,6 +399,7 @@
 }
 
 .link {
+    cursor: pointer;
     position: relative;
     z-index: 1;
     box-sizing: border-box;
@@ -432,7 +444,9 @@
     border-radius: inherit;
     transition: box-shadow .15s;
 }
-.link:hover .frame::after { box-shadow: inset 0 0 0 2px var(--focus); }
+.link:hover .frame::after,
+.link:focus-visible .frame::after { box-shadow: inset 0 0 0 2px var(--focus); }
+.link:focus-visible { outline: none; }
 
 .text {
     flex: 1;

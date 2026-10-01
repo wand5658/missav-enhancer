@@ -24,7 +24,7 @@
     measureHeader();
     if (header) new ResizeObserver(measureHeader).observe(header);
 
-    // ── 首頁：hero 滿版 ───────────────────────────────────────
+    // ── 首頁、列表頁：hero 滿版 ───────────────────────────────
     // 用量的而不是 100vw：100vw 含捲軸寬度，Windows 上會多出橫向捲軸
     function placeHero() {
         const host = root.querySelector(':scope > [data-video-helper="hero"]');
@@ -287,6 +287,7 @@
             initRows();
         } else {
             initToolbar();
+            placeHero();
         }
         tidyCards();
     }
@@ -302,8 +303,8 @@
     }).observe(root, { childList: true, subtree: true });
 
     addEventListener("resize", () => {
+        if (kind !== "video") placeHero();
         if (kind === "list") return;
-        if (kind === "home") placeHero();
         if (kind === "video") measurePlayer();
         layoutRows();
     });
