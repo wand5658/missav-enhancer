@@ -3,12 +3,11 @@
     // 站台在 Cloudflare 後面，同源 DOM 是唯一穩定的來源。
     //
     // 首頁靠卡片認：預覽影片 id 是 preview-home-<區塊>-<番號>，不用管網址或語系路徑。
-    // 其他要輪播的頁面靠網址認，收整頁的 .thumbnail（不依賴那些頁面的 video id 格式）。
-    // 影片頁底下的推薦卡片也是 .thumbnail，所以不能不看網址就全站收。
-    const LIST_PAGES = [/^\/dm\d+(\/|$)/, /^\/saved\/?$/];    // dm 後面的數字會換（dm635、dm539…）
-    const onListPage = LIST_PAGES.some(re => re.test(location.pathname));
-    const CARD_VIDEO = onListPage ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
-    const LAYOUT_ROOT = "div.content-without-search, div.content-with-search";
+    // 其他要輪播的頁面靠網址認（VH.LIST_PAGES，在 pages.js），收整頁的 .thumbnail，
+    // 不依賴那些頁面的 video id 格式。
+    const kind = VH.kind();
+    const CARD_VIDEO = kind === "list" ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
+    const LAYOUT_ROOT = VH.LAYOUT_ROOT;
 
     const SLIDE_MS = 12000;         // 每張停多久（進度條的動畫就是時鐘）
     const POOL_MAX = 40;
@@ -95,6 +94,8 @@
     function build() {
         host = document.createElement("div");
         host.setAttribute("data-video-helper", "hero");
+        // 首頁滿版、頂到頁首底下；位置由 browse.js 量，這裡只切換內部樣式
+        if (kind === "home") host.setAttribute("data-bleed", "");
         const shadow = host.attachShadow({ mode: "open" });
         shadow.innerHTML = `<style>${CSS}</style>
 <section class="hero" hidden>
@@ -292,6 +293,9 @@
     font-variant-numeric: tabular-nums;
 }
 .hero[hidden] { display: none; }
+/* 滿版時頁首（固定、透明漸層）疊在上面：高度和上緣留白都加上頁首高度，--vh-header 由 browse.js 寫在 <html> 上 */
+:host([data-bleed]) .hero { border-radius: 0; height: calc(var(--h) + var(--vh-header, 0px)); }
+:host([data-bleed]) .link { padding-top: calc(32px + var(--vh-header, 0px)); }
 .stage { position: absolute; inset: 0; }
 .slide {
     position: absolute;
@@ -469,6 +473,8 @@
 /* 窄螢幕改直排：畫框在上、標題在下 */
 @media (max-width: 760px) {
     .hero { height: calc((100cqw - 96px) * 9 / 16 + 190px); }
+    :host([data-bleed]) .hero { height: calc((100cqw - 96px) * 9 / 16 + 190px + var(--vh-header, 0px)); }
+    :host([data-bleed]) .link { padding-top: calc(20px + var(--vh-header, 0px)); }
     .link { flex-direction: column; align-items: stretch; gap: 16px; padding: 20px 48px 40px; }
     .frame { width: 100%; }
     .ctl { right: 48px; }

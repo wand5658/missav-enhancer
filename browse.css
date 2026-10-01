@@ -1,0 +1,287 @@
+/* 首頁橫列與列表頁工具列。所有規則都限定在 browse.js 加在 <html> 上的
+ * vh-home / vh-list 底下，影片頁一條都不會套到。
+ *
+ * 不寫被 x-show 控制的元素的 display：Alpine 靠 inline display 開關它們，
+ * 這裡一蓋就跟它搶同一個屬性（CLAUDE.md 的登入 modal 事件）。 */
+
+html.vh-home,
+html.vh-list {
+    --vh-ink: #eceff4;
+    --vh-dim: #9aa3b5;
+    --vh-focus: #88c0d0;
+    --vh-panel: #3b4252;
+    --vh-sub: #bf616a;
+}
+
+/* ── 廣告收掉 ──────────────────────────────────────────────── */
+html.vh-home .pt-16.pb-4.px-4:has(iframe),
+html.vh-home .fixed.right-2.bottom-2:has(iframe),
+html.vh-list .fixed.right-2.bottom-2:has(iframe) {
+    display: none;
+}
+
+/* ── 首頁：大搜尋框收掉（頁首的搜尋還在）──────────────────
+ * 這個容器只有 :class 綁 pb-8，沒有 x-show，可以直接藏 */
+html.vh-home .is-home > div.flex-col:has(> div > form) {
+    display: none;
+}
+
+/* 推薦區的「載入更多」原本是 absolute，浮在下面廣告的 pt-16 留白上；
+ * 廣告收掉後會疊到下一區底下點不到。改回文件流，只動 position —— 它的 display 歸 x-show 管 */
+html.vh-home [data-vh-section] + div.absolute.w-full.text-center {
+    position: static;
+    padding: 4px 0 8px;
+}
+
+/* ── 卡片（首頁、列表頁共用）────────────────────────────── */
+html.vh-home .thumbnail,
+html.vh-list .thumbnail {
+    position: relative;
+    border-radius: 6px;
+    transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+/* 停一下才放大，滑過去不會整排跳動。放大後會壓到隔壁，所以給一塊底色當面板 */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    html.vh-home .thumbnail:hover,
+    html.vh-list .thumbnail:hover {
+        z-index: 3;
+        transform: scale(1.15);
+        background-color: var(--vh-panel);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, .55);
+        transition-delay: .3s;
+    }
+    html.vh-home .thumbnail:hover .my-2,
+    html.vh-list .thumbnail:hover .my-2 { padding: 0 8px 4px; }
+}
+
+/* 標題從一行截斷改成兩行；固定兩行高，同一列的卡片才對得齊 */
+html.vh-home .thumbnail .my-2.truncate,
+html.vh-list .thumbnail .my-2.truncate {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.45;
+    min-height: 2.9em;
+}
+
+/* 一張卡只有標題能拿到焦點（browse.js 的 tidyCards），焦點框畫在封面上 */
+html.vh-home .thumbnail:focus-within > .relative,
+html.vh-list .thumbnail:focus-within > .relative {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+html.vh-home .thumbnail .my-2 a:focus-visible,
+html.vh-list .thumbnail .my-2 a:focus-visible {
+    outline: none;
+    color: var(--vh-focus);
+}
+
+html.vh-home .thumbnail .bg-red-800,
+html.vh-list .thumbnail .bg-red-800 {
+    background-color: var(--vh-sub);
+}
+
+/* ── 首頁：區塊標題列 ──────────────────────────────────── */
+html.vh-home [data-vh-section] {
+    position: relative;
+}
+html.vh-home [data-vh-section] > div.flex:first-child {
+    justify-content: flex-start;
+    gap: 16px;
+    padding-top: 28px;          /* 原本 pt-10，橫列比網格矮，區塊間距跟著收 */
+}
+html.vh-home [data-vh-section] > div.flex:first-child > .flex-1 {
+    flex: 0 1 auto;             /* 「更多」貼在標題旁邊，不要被推到最右邊 */
+}
+html.vh-home [data-vh-section] h2 {
+    font-size: clamp(20px, 1.6vw, 26px);
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-home [data-vh-section] a.text-nord4 {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 999px;
+    transition: background-color .15s;
+}
+html.vh-home [data-vh-section] a.text-nord4:hover {
+    background-color: rgba(236, 239, 244, .1);
+}
+
+/* ── 首頁：橫列 ────────────────────────────────────────── */
+html.vh-home [data-vh-row] {
+    --gap: 16px;
+    --per: 2.3;                 /* 一列看到幾張；小數點是故意露出的半張 */
+    --lift: 20px;               /* 上下留給放大的卡片，不然會被捲動容器裁掉 */
+    --lead: 24px;               /* 左邊同理，最左那張放大時才不會被切 */
+    display: flex;
+    gap: var(--gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--lead);
+    scrollbar-width: none;
+    /* 右邊延伸到視窗邊緣；padding 和 margin 互相抵銷，內容寬度仍等於區塊寬度 */
+    padding: var(--lift) var(--vh-bleed, 0px) var(--lift) var(--lead);
+    margin: calc(-1 * var(--lift)) calc(-1 * var(--vh-bleed, 0px)) calc(-1 * var(--lift)) calc(-1 * var(--lead));
+}
+html.vh-home [data-vh-row]::-webkit-scrollbar { display: none; }
+html.vh-home [data-vh-row] > * {
+    flex: 0 0 calc((100% - (var(--per) - 1) * var(--gap)) / var(--per));
+    min-width: 0;
+    scroll-snap-align: start;
+}
+/* 伺服器端區塊裡沒放卡片的空殼，在橫列裡會變成一格空位 */
+html.vh-home [data-vh-row] > div:not(.thumbnail):not(:has(.thumbnail)) {
+    display: none;
+}
+@media (min-width: 768px) { html.vh-home [data-vh-row] { --per: 3.3; } }
+@media (min-width: 1280px) { html.vh-home [data-vh-row] { --per: 4.3; } }
+@media (min-width: 1600px) { html.vh-home [data-vh-row] { --per: 5.5; } }
+
+/* 箭頭：top / height 由 browse.js 對齊橫列；平常隱形，滑到區塊上才出現 */
+html.vh-home .vh-arrow {
+    position: absolute;
+    z-index: 4;
+    width: 56px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s ease;
+}
+html.vh-home .vh-arrow[hidden] { display: none; }
+html.vh-home .vh-arrow.prev {
+    left: calc(var(--vh-pad, 16px) - 24px);     /* 對齊橫列的左緣（區塊內距 - --lead） */
+    background: linear-gradient(90deg, rgba(36, 41, 51, .9), rgba(36, 41, 51, 0));
+}
+html.vh-home .vh-arrow.next {
+    right: calc(-1 * var(--vh-edge, 0px));
+    background: linear-gradient(-90deg, rgba(36, 41, 51, .9), rgba(36, 41, 51, 0));
+}
+html.vh-home .vh-arrow svg {
+    width: 34px;
+    height: 34px;
+    filter: drop-shadow(0 1px 6px rgba(0, 0, 0, .6));
+    transition: transform .15s ease;
+}
+html.vh-home [data-vh-section]:hover .vh-arrow { opacity: 1; }
+html.vh-home .vh-arrow:hover svg { transform: scale(1.2); }
+
+/* ── 列表頁 ────────────────────────────────────────────── */
+html.vh-list .vh-gone { display: none; }
+
+html.vh-list .content-without-search > h1,
+html.vh-list .content-with-search > h1 {
+    margin-bottom: 16px;
+    text-align: left;
+    font-size: clamp(22px, 2vw, 30px);
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+
+/* 捲下去也能直接換排序，停在固定頁首的正下方 */
+html.vh-list .vh-toolbar {
+    position: sticky;
+    top: var(--vh-header, 0px);
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    margin: 0 0 24px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: rgba(36, 41, 51, .85);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+html.vh-list .vh-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+html.vh-list .vh-group-name {
+    flex: none;
+    font-size: 13px;
+    color: var(--vh-dim);
+}
+html.vh-list .vh-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+html.vh-list .vh-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    white-space: nowrap;
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    text-decoration: none;
+    transition: background-color .15s;
+}
+html.vh-list .vh-chip:hover { background: rgba(236, 239, 244, .16); }
+html.vh-list .vh-chip[aria-current] {
+    font-weight: 600;
+    color: #242933;
+    background: var(--vh-focus);
+}
+html.vh-list .vh-chip:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+html.vh-list .vh-page {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--vh-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 窄螢幕：每組一行，選項橫向捲動，不要把工具列撐成半個螢幕高 */
+@media (max-width: 767px) {
+    html.vh-list .vh-group { width: 100%; }
+    html.vh-list .vh-chips {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    html.vh-list .vh-chips::-webkit-scrollbar { display: none; }
+    html.vh-list .vh-page { margin-left: 0; }
+}
+
+/* 分頁：點擊範圍至少 40×40，目前頁用焦點色 */
+html.vh-list nav a.inline-flex,
+html.vh-list nav span.inline-flex {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+}
+html.vh-list nav span > span.rounded-lg {
+    font-weight: 700;
+    color: #242933;
+    background: var(--vh-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.vh-home .thumbnail,
+    html.vh-list .thumbnail,
+    html.vh-home .vh-arrow,
+    html.vh-home .vh-arrow svg,
+    html.vh-list .vh-chip { transition: none; }
+}

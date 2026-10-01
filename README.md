@@ -10,6 +10,8 @@ Some video pages register handlers on `window` `blur` and `document` `visibility
 
 - **Anti auto-pause** — playback survives `Alt+Tab`, `Ctrl+Tab`, and clicking into another window. Pausing yourself (the player button, spacebar) still works normally.
 - **Cover carousel** — a hero at the top of the home page, `/dm<n>/*` and `/saved` rotates through that page's own video cards: dimmed cover backdrop, a cover frame that crossfades into the muted preview clip, title, prev/next, and a progress bar. Pauses on hover, when the tab is hidden, or when scrolled mostly out of view.
+- **Home rows** — the home page's sections become Netflix-style horizontal rows (scroll-snap, a peek of the next card, hover arrows, ←/→ between cards, cards enlarge on hover). The random section stays a grid. In-page ads are hidden on the home and list pages.
+- **List toolbar** — the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with the current page number.
 - **Wide layout** — removes the horizontal padding around the player container and centres it at `max-width: 150vh`, re-applying on DOM changes so it survives client-side navigation.
 
 ## Install
@@ -38,7 +40,9 @@ A second fallback layer watches for `pause` events in the capture phase and resu
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
 | `content.js` | isolated | `document_end` | Layout adjustments via `MutationObserver` |
+| `pages.js` | isolated | `document_end` | Shared page detection (home / list) |
 | `hero.js` | isolated | `document_end` | Cover carousel on the home page, `/dm<n>/*`, `/saved` |
+| `browse.js` + `browse.css` | isolated | `document_end` | Home rows and list toolbar |
 
 ## Limitations
 
