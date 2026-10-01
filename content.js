@@ -1,6 +1,7 @@
 (function () {
     function applyStyles() {
-        const layoutRoots = document.querySelectorAll("div.content-without-search, div.content-with-search");
+        // 首頁跳過：橫列要貼齊視窗左右邊（browse.css 的 --vh-gutter），150vh 置中會把它擠回中間
+        const layoutRoots = document.querySelectorAll("div.content-without-search:not(.is-home), div.content-with-search:not(.is-home)");
 
         // 第一個 div（版面容器本身，加寬並置中）
         layoutRoots.forEach(div => {

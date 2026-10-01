@@ -6,11 +6,21 @@
 
 html.vh-home,
 html.vh-list {
+    --vh-zoom: 1.3;             /* hover 放大倍率；browse.js 的 ZOOM 要一起改 */
     --vh-ink: #eceff4;
     --vh-dim: #9aa3b5;
     --vh-focus: #88c0d0;
     --vh-panel: #3b4252;
     --vh-sub: #bf616a;
+}
+html.vh-home { --vh-gutter: clamp(16px, 4vw, 60px); }
+
+/* 首頁區塊不再置中：拿掉 sm:container 的 max-width，左右只留 --vh-gutter，影片區貼近左邊。
+ * content.js 也對 .is-home 跳過 150vh 的限制 */
+html.vh-home .is-home .sm\:container {
+    max-width: none;
+    padding-left: var(--vh-gutter);
+    padding-right: var(--vh-gutter);
 }
 
 /* ── 廣告收掉 ──────────────────────────────────────────────── */
@@ -29,7 +39,8 @@ html.vh-home .is-home > div.flex-col:has(> div > form) {
 /* 推薦區的「載入更多」原本是 absolute，浮在下面廣告的 pt-16 留白上；
  * 廣告收掉後會疊到下一區底下點不到。改回文件流，只動 position —— 它的 display 歸 x-show 管 */
 html.vh-home [data-vh-section] + div.absolute.w-full.text-center {
-    position: static;
+    position: relative;         /* 疊在上一列的 --lift 上面才點得到 */
+    z-index: 5;
     padding: 4px 0 8px;
 }
 
@@ -45,8 +56,8 @@ html.vh-list .thumbnail {
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     html.vh-home .thumbnail:hover,
     html.vh-list .thumbnail:hover {
-        z-index: 3;
-        transform: scale(1.15);
+        z-index: 6;
+        transform: scale(var(--vh-zoom));
         background-color: var(--vh-panel);
         box-shadow: 0 14px 36px rgba(0, 0, 0, .55);
         transition-delay: .3s;
@@ -88,7 +99,11 @@ html.vh-list .thumbnail .bg-red-800 {
 html.vh-home [data-vh-section] {
     position: relative;
 }
+/* 橫列的 --lift 會往上蓋住標題列下緣：標題列疊在橫列上面，「更多」才點得到；
+ * hover 的卡片 z-index 再更高，放大時壓過標題列 */
 html.vh-home [data-vh-section] > div.flex:first-child {
+    position: relative;
+    z-index: 5;
     justify-content: flex-start;
     gap: 16px;
     padding-top: 28px;          /* 原本 pt-10，橫列比網格矮，區塊間距跟著收 */
@@ -117,8 +132,8 @@ html.vh-home [data-vh-section] a.text-nord4:hover {
 /* ── 首頁：橫列 ────────────────────────────────────────── */
 html.vh-home [data-vh-row] {
     --gap: 16px;
-    --per: 2.3;                 /* 一列看到幾張；小數點是故意露出的半張 */
-    --lift: 20px;               /* 上下留給放大的卡片，不然會被捲動容器裁掉 */
+    --per: 1.8;                 /* 一列看到幾張；小數點是故意露出的那一截 */
+    --lift: 44px;               /* 上下留給放大的卡片，不然會被捲動容器裁掉；左右靠 browse.js 換放大原點 */
     --lead: 24px;               /* 左邊同理，最左那張放大時才不會被切 */
     display: flex;
     gap: var(--gap);
@@ -142,14 +157,14 @@ html.vh-home [data-vh-row] > * {
 html.vh-home [data-vh-row] > div:not(.thumbnail):not(:has(.thumbnail)) {
     display: none;
 }
-@media (min-width: 768px) { html.vh-home [data-vh-row] { --per: 3.3; } }
-@media (min-width: 1280px) { html.vh-home [data-vh-row] { --per: 4.3; } }
-@media (min-width: 1600px) { html.vh-home [data-vh-row] { --per: 5.5; } }
+@media (min-width: 768px) { html.vh-home [data-vh-row] { --per: 2.6; } }
+@media (min-width: 1280px) { html.vh-home [data-vh-row] { --per: 3.4; } }
+@media (min-width: 1600px) { html.vh-home [data-vh-row] { --per: 4.4; } }
 
 /* 箭頭：top / height 由 browse.js 對齊橫列；平常隱形，滑到區塊上才出現 */
 html.vh-home .vh-arrow {
     position: absolute;
-    z-index: 4;
+    z-index: 7;                 /* 壓過 hover 放大的卡片（6），靠邊那張放大時箭頭才點得到 */
     width: 56px;
     padding: 0;
     display: flex;
@@ -181,6 +196,21 @@ html.vh-home .vh-arrow:hover svg { transform: scale(1.2); }
 
 /* ── 列表頁 ────────────────────────────────────────────── */
 html.vh-list .vh-gone { display: none; }
+
+/* 卡片放大：原本 2 / 3 / 4 欄，改成 1 / 2 / 3 欄 */
+html.vh-list .content-without-search > div.grid,
+html.vh-list .content-with-search > div.grid {
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+    html.vh-list .content-without-search > div.grid,
+    html.vh-list .content-with-search > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+    html.vh-list .content-without-search > div.grid,
+    html.vh-list .content-with-search > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 
 html.vh-list .content-without-search > h1,
 html.vh-list .content-with-search > h1 {

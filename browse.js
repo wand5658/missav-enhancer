@@ -190,6 +190,24 @@
         return { now, total: tot ? tot[1] : "" };
     }
 
+    // ── 卡片：hover 放大的原點 ────────────────────────────────
+    // 放大 1.3 倍，靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
+    // 進入卡片時量一次：左邊不夠就從左緣放大、右邊不夠就從右緣。CSS 有 0.3s 延遲，量的時候還沒放大
+    const ZOOM = 1.3;               // 跟 browse.css 的 --vh-zoom 一起改
+    root.addEventListener("pointerover", e => {
+        const card = e.target.closest?.(".thumbnail");
+        if (!card || card.contains(e.relatedTarget)) return;
+        const r = card.getBoundingClientRect();
+        const row = card.closest("[data-vh-row]");
+        const box = row ? row.getBoundingClientRect() : { left: 0, right: Infinity };
+        const left = Math.max(box.left, 0);
+        const right = Math.min(box.right, document.documentElement.clientWidth);
+        const grow = r.width * (ZOOM - 1) / 2;
+        card.style.transformOrigin =
+            r.left - grow < left ? "left center" :
+            r.right + grow > right ? "right center" : "";
+    });
+
     // ── 卡片：一張只停一次 Tab ────────────────────────────────
     // 每張卡有封面、徽章、片長、標題好幾個連結，全部指向同一頁。只留標題那個
     function tidyCards() {
