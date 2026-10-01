@@ -1,15 +1,16 @@
 (function () {
-    // 首頁改 Netflix 式橫列、列表頁把過濾／排序攤開成按鈕。
+    // 全站左右留白、首頁 Netflix 式橫列、列表頁把過濾／排序攤開成按鈕、影片頁劇院式版面。
     //
-    // 排版全部在 browse.css，規則都掛在 html.vh-home / html.vh-list 底下，影片頁不受影響。
-    // 這裡只做 CSS 做不到的事：標記哪些網格要變橫列、插自己的按鈕、量尺寸。
+    // 排版全部在 browse.css：vh-wide 掛在所有有 layout root 的頁面（只管左右留白），
+    // 其餘規則掛在 html.vh-home / vh-list / vh-video 底下。
+    // 這裡只做 CSS 做不到的事：標記哪些網格要變橫列、插自己的節點、量尺寸。
     // 不寫任何 Alpine 會用 x-show 控制的 display —— 見 CLAUDE.md 登入 modal 那段。
     const kind = VH.kind();
-    if (!kind) return;
-    document.documentElement.classList.add(`vh-${kind}`);
-
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
     if (!root) return;
+    document.documentElement.classList.add("vh-wide");
+    if (!kind) return;
+    document.documentElement.classList.add(`vh-${kind}`);
 
     const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -35,18 +36,31 @@
         host.style.marginTop = `${-(r.top + scrollY)}px`;     // 拉到文件頂端，讓頁首疊在上面
     }
 
-    // ── 首頁：橫列 ────────────────────────────────────────────
+    // ── 橫列（首頁各區塊、影片頁的相關影片）───────────────────
     const rows = [];
 
+    function rowGrids() {
+        // 影片頁只有最下面的相關影片；側欄推薦不是網格，不會被選到
+        if (kind === "video") return [...root.querySelectorAll("div.relative.overflow-hidden > div.grid")];
+        // 首頁：隨機區（標題列有「好手氣」按鈕）維持網格
+        return [...root.querySelectorAll("div.grid")].filter(grid =>
+            grid.parentElement && !grid.parentElement.querySelector(":scope > div button.button-primary"));
+    }
+
     function initRows() {
-        root.querySelectorAll("div.grid").forEach(grid => {
+        rowGrids().forEach(grid => {
             if (grid.hasAttribute("data-vh-row")) return;
             const section = grid.parentElement;
-            // 隨機區（標題列有「好手氣」按鈕）維持網格
-            if (!section || section.querySelector(":scope > div button.button-primary")) return;
 
             grid.setAttribute("data-vh-row", "");
             section.setAttribute("data-vh-section", "");
+            if (kind === "video") {
+                // 影片頁這區原本沒有標題
+                const h = document.createElement("h2");
+                h.className = "vh-row-title";
+                h.textContent = "相關影片";
+                grid.before(h);
+            }
 
             const prev = arrow("prev", "上一組", "M15 5l-7 7 7 7");
             const next = arrow("next", "下一組", "M9 5l7 7-7 7");
@@ -68,7 +82,7 @@
                 requestAnimationFrame(() => { ticking = false; syncArrows(row); });
             }, { passive: true });
 
-            // ←/→ 在同一列的卡片之間移動焦點。首頁站台沒有方向鍵處理，不會撞到
+            // ←/→ 在同一列的卡片之間移動焦點。只在焦點落在卡片上時攔截，播放器的方向鍵快轉不受影響
             grid.addEventListener("keydown", e => {
                 if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
                 if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -190,6 +204,19 @@
         return { now, total: tot ? tot[1] : "" };
     }
 
+    // ── 影片頁：側欄 ──────────────────────────────────────────
+    // 伺服器端寫死 inline max/min-width: 300px，CSS 蓋不過 inline，只能拿掉（Alpine 不管這個屬性）
+    function initSide() {
+        const side = root.querySelector(":scope > div.flex[x-data] > div.order-last");
+        if (!side || side.dataset.vhSide) return;
+        side.dataset.vhSide = "1";
+        side.style.maxWidth = side.style.minWidth = "";
+        const h = document.createElement("h2");
+        h.className = "vh-side-title";
+        h.textContent = "接著看";
+        (side.firstElementChild || side).prepend(h);
+    }
+
     // ── 卡片：hover 放大的原點 ────────────────────────────────
     // 放大 1.3 倍，靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
     // 進入卡片時量一次：左邊不夠就從左緣放大、右邊不夠就從右緣。CSS 有 0.3s 延遲，量的時候還沒放大
@@ -226,6 +253,9 @@
         if (kind === "home") {
             initRows();
             placeHero();
+        } else if (kind === "video") {
+            initRows();
+            initSide();
         } else {
             initToolbar();
         }
@@ -242,8 +272,8 @@
     }).observe(root, { childList: true, subtree: true });
 
     addEventListener("resize", () => {
-        if (kind !== "home") return;
-        placeHero();
+        if (kind === "list") return;
+        if (kind === "home") placeHero();
         layoutRows();
     });
 })();

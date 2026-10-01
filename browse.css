@@ -1,11 +1,12 @@
-/* 首頁橫列與列表頁工具列。所有規則都限定在 browse.js 加在 <html> 上的
- * vh-home / vh-list 底下，影片頁一條都不會套到。
+/* 全站留白、首頁橫列、列表頁工具列、影片頁版面。content_scripts 的 css 會注入站上每一頁，
+ * 所以每條規則都限定在 browse.js 加在 <html> 上的 class 底下：
+ * vh-wide（所有有 layout root 的頁面，只管左右留白）、vh-home / vh-list / vh-video。
  *
  * 不寫被 x-show 控制的元素的 display：Alpine 靠 inline display 開關它們，
  * 這裡一蓋就跟它搶同一個屬性（CLAUDE.md 的登入 modal 事件）。 */
 
-html.vh-home,
-html.vh-list {
+html.vh-wide {
+    --vh-gutter: clamp(16px, 4vw, 60px);
     --vh-zoom: 1.3;             /* hover 放大倍率；browse.js 的 ZOOM 要一起改 */
     --vh-ink: #eceff4;
     --vh-dim: #9aa3b5;
@@ -13,10 +14,16 @@ html.vh-list {
     --vh-panel: #3b4252;
     --vh-sub: #bf616a;
 }
-html.vh-home { --vh-gutter: clamp(16px, 4vw, 60px); }
+/* 全站不再置中：layout root 拿掉 sm:container 的 max-width，左右只留 --vh-gutter。
+ * 首頁 root 本身沒有 sm:container，留白放在各區塊上（下一條），這裡排除以免變兩倍 */
+html.vh-wide :is(div.content-without-search, div.content-with-search):not(.is-home) {
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: var(--vh-gutter);
+    padding-right: var(--vh-gutter);
+}
 
-/* 首頁區塊不再置中：拿掉 sm:container 的 max-width，左右只留 --vh-gutter，影片區貼近左邊。
- * content.js 也對 .is-home 跳過 150vh 的限制 */
 html.vh-home .is-home .sm\:container {
     max-width: none;
     padding-left: var(--vh-gutter);
@@ -26,7 +33,11 @@ html.vh-home .is-home .sm\:container {
 /* ── 廣告收掉 ──────────────────────────────────────────────── */
 html.vh-home .pt-16.pb-4.px-4:has(iframe),
 html.vh-home .fixed.right-2.bottom-2:has(iframe),
-html.vh-list .fixed.right-2.bottom-2:has(iframe) {
+html.vh-list .fixed.right-2.bottom-2:has(iframe),
+html.vh-video .fixed.right-2.bottom-2:has(iframe),
+html.vh-video .under_player,
+html.vh-video [data-vh-section] > div:has(> iframe),
+html.vh-video div.order-last div.space-y-6:has(iframe) {
     display: none;
 }
 
@@ -50,7 +61,8 @@ html.vh-home [data-vh-section] + div.absolute.w-full.text-center > a svg {
 
 /* ── 卡片（首頁、列表頁共用）────────────────────────────── */
 html.vh-home .thumbnail,
-html.vh-list .thumbnail {
+html.vh-list .thumbnail,
+html.vh-video [data-vh-row] .thumbnail {
     position: relative;
     border-radius: 6px;
     transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
@@ -59,7 +71,8 @@ html.vh-list .thumbnail {
 /* 停一下才放大，滑過去不會整排跳動。放大後會壓到隔壁，所以給一塊底色當面板 */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     html.vh-home .thumbnail:hover,
-    html.vh-list .thumbnail:hover {
+    html.vh-list .thumbnail:hover,
+    html.vh-video [data-vh-row] .thumbnail:hover {
         z-index: 6;
         transform: scale(var(--vh-zoom));
         background-color: var(--vh-panel);
@@ -67,12 +80,14 @@ html.vh-list .thumbnail {
         transition-delay: .3s;
     }
     html.vh-home .thumbnail:hover .my-2,
-    html.vh-list .thumbnail:hover .my-2 { padding: 0 8px 4px; }
+    html.vh-list .thumbnail:hover .my-2,
+    html.vh-video [data-vh-row] .thumbnail:hover .my-2 { padding: 0 8px 4px; }
 }
 
 /* 標題從一行截斷改成兩行；固定兩行高，同一列的卡片才對得齊 */
 html.vh-home .thumbnail .my-2.truncate,
-html.vh-list .thumbnail .my-2.truncate {
+html.vh-list .thumbnail .my-2.truncate,
+html.vh-video [data-vh-row] .thumbnail .my-2.truncate {
     white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -84,18 +99,21 @@ html.vh-list .thumbnail .my-2.truncate {
 
 /* 一張卡只有標題能拿到焦點（browse.js 的 tidyCards），焦點框畫在封面上 */
 html.vh-home .thumbnail:focus-within > .relative,
-html.vh-list .thumbnail:focus-within > .relative {
+html.vh-list .thumbnail:focus-within > .relative,
+html.vh-video .thumbnail:focus-within > .relative {
     outline: 2px solid var(--vh-focus);
     outline-offset: 2px;
 }
 html.vh-home .thumbnail .my-2 a:focus-visible,
-html.vh-list .thumbnail .my-2 a:focus-visible {
+html.vh-list .thumbnail .my-2 a:focus-visible,
+html.vh-video .thumbnail .my-2 a:focus-visible {
     outline: none;
     color: var(--vh-focus);
 }
 
 html.vh-home .thumbnail .bg-red-800,
-html.vh-list .thumbnail .bg-red-800 {
+html.vh-list .thumbnail .bg-red-800,
+html.vh-video .thumbnail .bg-red-800 {
     background-color: var(--vh-sub);
 }
 
@@ -135,8 +153,8 @@ html.vh-home [data-vh-section] a.text-nord4:hover {
     background-color: rgba(236, 239, 244, .1);
 }
 
-/* ── 首頁：橫列 ────────────────────────────────────────── */
-html.vh-home [data-vh-row] {
+/* ── 橫列（首頁各區塊、影片頁的相關影片）──────────────── */
+:is(html.vh-home, html.vh-video) [data-vh-row] {
     --gap: 16px;
     --per: 1.8;                 /* 一列看到幾張；小數點是故意露出的那一截 */
     --lift: 44px;               /* 上下留給放大的卡片，不然會被捲動容器裁掉；左右靠 browse.js 換放大原點 */
@@ -153,22 +171,22 @@ html.vh-home [data-vh-row] {
     padding: var(--lift) var(--vh-bleed, 0px) var(--lift) var(--lead);
     margin: calc(-1 * var(--lift)) calc(-1 * var(--vh-bleed, 0px)) calc(-1 * var(--lift)) calc(-1 * var(--lead));
 }
-html.vh-home [data-vh-row]::-webkit-scrollbar { display: none; }
-html.vh-home [data-vh-row] > * {
+:is(html.vh-home, html.vh-video) [data-vh-row]::-webkit-scrollbar { display: none; }
+:is(html.vh-home, html.vh-video) [data-vh-row] > * {
     flex: 0 0 calc((100% - (var(--per) - 1) * var(--gap)) / var(--per));
     min-width: 0;
     scroll-snap-align: start;
 }
 /* 伺服器端區塊裡沒放卡片的空殼，在橫列裡會變成一格空位 */
-html.vh-home [data-vh-row] > div:not(.thumbnail):not(:has(.thumbnail)) {
+:is(html.vh-home, html.vh-video) [data-vh-row] > div:not(.thumbnail):not(:has(.thumbnail)) {
     display: none;
 }
-@media (min-width: 768px) { html.vh-home [data-vh-row] { --per: 2.6; } }
-@media (min-width: 1280px) { html.vh-home [data-vh-row] { --per: 3.4; } }
-@media (min-width: 1600px) { html.vh-home [data-vh-row] { --per: 4.4; } }
+@media (min-width: 768px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 2.6; } }
+@media (min-width: 1280px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 3.4; } }
+@media (min-width: 1600px) { :is(html.vh-home, html.vh-video) [data-vh-row] { --per: 4.4; } }
 
 /* 箭頭：top / height 由 browse.js 對齊橫列；平常隱形，滑到區塊上才出現 */
-html.vh-home .vh-arrow {
+:is(html.vh-home, html.vh-video) .vh-arrow {
     position: absolute;
     z-index: 7;                 /* 壓過 hover 放大的卡片（6），靠邊那張放大時箭頭才點得到 */
     width: 56px;
@@ -182,23 +200,24 @@ html.vh-home .vh-arrow {
     opacity: 0;
     transition: opacity .15s ease;
 }
-html.vh-home .vh-arrow[hidden] { display: none; }
-html.vh-home .vh-arrow.prev {
+:is(html.vh-home, html.vh-video) .vh-arrow[hidden] { display: none; }
+:is(html.vh-home, html.vh-video) .vh-arrow.prev {
     left: calc(var(--vh-pad, 16px) - 24px);     /* 對齊橫列的左緣（區塊內距 - --lead） */
     background: linear-gradient(90deg, rgba(36, 41, 51, .9), rgba(36, 41, 51, 0));
 }
-html.vh-home .vh-arrow.next {
+:is(html.vh-home, html.vh-video) .vh-arrow.next {
     right: calc(-1 * var(--vh-edge, 0px));
     background: linear-gradient(-90deg, rgba(36, 41, 51, .9), rgba(36, 41, 51, 0));
 }
-html.vh-home .vh-arrow svg {
+:is(html.vh-home, html.vh-video) .vh-arrow svg {
     width: 34px;
     height: 34px;
     filter: drop-shadow(0 1px 6px rgba(0, 0, 0, .6));
     transition: transform .15s ease;
 }
-html.vh-home [data-vh-section]:hover .vh-arrow { opacity: 1; }
-html.vh-home .vh-arrow:hover svg { transform: scale(1.2); }
+html.vh-home [data-vh-section]:hover .vh-arrow,
+html.vh-video [data-vh-section]:hover .vh-arrow { opacity: 1; }
+:is(html.vh-home, html.vh-video) .vh-arrow:hover svg { transform: scale(1.2); }
 
 /* ── 列表頁 ────────────────────────────────────────────── */
 html.vh-list .vh-gone { display: none; }
@@ -314,9 +333,151 @@ html.vh-list nav span > span.rounded-lg {
     background: var(--vh-focus);
 }
 
+/* ── 影片頁 ────────────────────────────────────────────── */
+/* 外層 div.flex[x-data] 改 grid；主欄 display: contents，讓它的子元素直接當 grid 的格子，
+ * 播放器才能橫跨兩欄而不用搬 DOM。這兩層都沒有 x-show。
+ * 分享／片單面板有 x-show：只給它們 grid 位置和 order，不碰 display */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 40px;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1.order-first { display: contents; }
+
+/* 單欄時的順序：播放器 → 標題 → 面板 → 詳情 → 接著看 → 相關影片 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { order: 1; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { order: 2; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { order: 3; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="playlist"] { order: 4; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 { order: 5; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { order: 6; margin-left: 0; height: auto; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > [data-vh-section] { order: 7; }
+
+/* 寬螢幕兩欄：右欄是接著看，跨標題到詳情；它比左欄高時，多出的高度由 1fr 的填充列吸收，
+ * 左欄各列不會被撐出空隙 */
+@media (min-width: 1280px) {
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] {
+        grid-template-columns: minmax(0, 1fr) 380px;
+        grid-template-rows: auto auto auto auto auto 1fr auto;
+    }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { grid-column: 1 / -1; grid-row: 1; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { grid-column: 1; grid-row: 2; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { grid-column: 1; grid-row: 3; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="playlist"] { grid-column: 1; grid-row: 4; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 { grid-column: 1; grid-row: 5; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { grid-column: 2; grid-row: 2 / 7; padding-top: 24px; }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > [data-vh-section] { grid-column: 1 / -1; grid-row: 7; }
+}
+
+/* 劇院底帶：黑底撐到視窗兩邊；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
+    --vh-player-w: max(480px, calc((100vh - var(--vh-header, 0px)) * 16 / 9));   /* 影片高度填滿頁首以下；循環列在下方 */
+    margin-left: calc(-1 * var(--vh-gutter));
+    margin-right: calc(-1 * var(--vh-gutter));
+    padding: 0 var(--vh-gutter);
+    background: #000;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > * {
+    max-width: var(--vh-player-w);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 標題與按鈕 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { margin-top: 20px; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 {
+    font-size: clamp(20px, 1.8vw, 28px);
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--vh-ink);
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 14px 0 20px;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button {
+    min-height: 40px;
+    margin: 0;
+    padding: 0 16px;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    transition: background-color .15s;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(236, 239, 244, .16); }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+
+/* 詳情：推廣連結收掉；每列「標籤＋值」用懸掛縮排對齊，值改膠囊。
+ * 父層 font-size: 0 是為了藏掉連結之間的純文字逗號，子元素再設回字級。
+ * 所以縮排寬度不能用 em：父層的 em 會變成 0，標籤的 em 卻是 14px，標籤會被推出版面 */
+html.vh-video [x-show="currentTab === 'video_details'"] ul.list-none { display: none; }
+html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary {
+    --vh-label-w: 88px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    padding-left: var(--vh-label-w);
+    font-size: 0;
+}
+html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary > * { font-size: 14px; }
+html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary > span:first-child {
+    flex: 0 0 var(--vh-label-w);
+    margin-left: calc(-1 * var(--vh-label-w));
+    color: var(--vh-dim);
+}
+html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary > a {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(235, 203, 139, .12);
+    transition: background-color .15s;
+}
+html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text-secondary > a:hover {
+    background: rgba(235, 203, 139, .24);
+}
+
+/* 接著看（原側欄） */
+html.vh-video .vh-side-title,
+html.vh-video .vh-row-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-video .vh-row-title {
+    position: relative;
+    z-index: 5;             /* 跟首頁標題列一樣，疊在橫列的 --lift 上面 */
+    margin-top: 8px;
+    font-size: clamp(20px, 1.6vw, 26px);
+}
+/* 單欄時接著看改多欄清單，不然 11 部直排太長 */
+@media (max-width: 1279px) {
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last > div {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        column-gap: 24px;
+        width: 100%;
+    }
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last .vh-side-title { grid-column: 1 / -1; }
+}
+
+/* 相關影片：原本 overflow-hidden，會切掉橫列往右延伸和 hover 放大 */
+html.vh-video [data-vh-section] {
+    position: relative;
+    overflow: visible;
+    margin-top: 16px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     html.vh-home .thumbnail,
     html.vh-list .thumbnail,
+    html.vh-video [data-vh-row] .thumbnail,
+    html.vh-video .vh-arrow,
+    html.vh-video .vh-arrow svg,
     html.vh-home .vh-arrow,
     html.vh-home .vh-arrow svg,
     html.vh-list .vh-chip { transition: none; }

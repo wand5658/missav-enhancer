@@ -1,6 +1,6 @@
 # Video Helper
 
-A Manifest V3 Chrome extension that stops a video page from auto-pausing playback when the browser window or tab loses focus, and widens the player layout to use more of the screen.
+A Manifest V3 Chrome extension that stops a video page from auto-pausing playback when the browser window or tab loses focus, and restyles the site for easier browsing.
 
 ## Why
 
@@ -12,7 +12,8 @@ Some video pages register handlers on `window` `blur` and `document` `visibility
 - **Cover carousel** — a hero at the top of the home page, `/dm<n>/*` and `/saved` rotates through that page's own video cards: dimmed cover backdrop, a cover frame that crossfades into the muted preview clip, title, prev/next, and a progress bar. Pauses on hover, when the tab is hidden, or when scrolled mostly out of view.
 - **Home rows** — the home page's sections become Netflix-style horizontal rows (scroll-snap, a peek of the next card, hover arrows, ←/→ between cards, cards enlarge on hover). The random section stays a grid. In-page ads are hidden on the home and list pages.
 - **List toolbar** — the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with the current page number.
-- **Wide layout** — removes the horizontal padding around the player container and centres it at `max-width: 150vh`, re-applying on DOM changes so it survives client-side navigation.
+- **Edge-to-edge layout** — every page drops the centred container in favour of a small side gutter.
+- **Theater video page** — the player sits in a full-width black band sized to fit the window height; below it, title, actions and details on the left and the up-next list on the right (one column on narrower screens); related videos become a scrolling row. Ads and promo links are hidden.
 
 ## Install
 
@@ -39,14 +40,13 @@ A second fallback layer watches for `pause` events in the capture phase and resu
 | File | World | Timing | Purpose |
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
-| `content.js` | isolated | `document_end` | Layout adjustments via `MutationObserver` |
 | `pages.js` | isolated | `document_end` | Shared page detection (home / list) |
 | `hero.js` | isolated | `document_end` | Cover carousel on the home page, `/dm<n>/*`, `/saved` |
 | `browse.js` + `browse.css` | isolated | `document_end` | Home rows and list toolbar |
 
 ## Limitations
 
-Both scripts are coupled to the target site's internals. If the site renames its `player` global or changes the markup that `content.js` selects, the extension stops having an effect — silently, since there is nothing to error on. `CLAUDE.md` documents a Console-based procedure for re-identifying the pause mechanism when that happens.
+Every script is coupled to the target site's internals. If the site renames its `player` global or changes the markup that `browse.css` / `browse.js` select, the extension stops having an effect — silently, since there is nothing to error on. `CLAUDE.md` documents a Console-based procedure for re-identifying the pause mechanism when that happens.
 
 The target domains are listed in three places in `manifest.json` — `host_permissions`, and the `matches` array of each of the two `content_scripts` entries. Pointing the extension elsewhere, or adding another domain, means editing all three; miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
 

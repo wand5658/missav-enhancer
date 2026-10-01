@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-An unpacked Chrome extension (Manifest V3) that patches one specific site, served from two domains — `missav.ai` and `missav.ws`. Both run the same frontend, so a single set of scripts and selectors covers them. Unrelated features: prevent the page from auto-pausing video when the window or tab loses focus, widen the video layout, add a cover carousel (hero) to the top of the home and list pages, and restyle those pages — the home page into Netflix-style scrolling rows, the list page's filter/sort dropdowns into one-click chips.
+An unpacked Chrome extension (Manifest V3) that patches one specific site, served from two domains — `missav.ai` and `missav.ws`. Both run the same frontend, so a single set of scripts and selectors covers them. Two unrelated concerns: prevent the page from auto-pausing video when the window or tab loses focus, and restyle the site — edge-to-edge layout on every page, a cover carousel (hero) on the home and list pages, Netflix-style scrolling rows on the home page, one-click filter/sort chips on list pages, and a theater-style two-column video page.
 
 There is no build step, no bundler, no package manager, no linter, and no test suite. The files in this directory *are* the extension — Chrome loads them as-is.
 
@@ -14,22 +14,23 @@ Load once via `chrome://extensions` → enable Developer mode → "Load unpacked
 
 After editing:
 
-- **`content.js` / `hero.js` / `browse.js` / `browse.css` / `pages.js` / `manifest.json`** — reload the extension at `chrome://extensions`, then reload the page.
+- **`pages.js` / `hero.js` / `browse.js` / `browse.css` / `manifest.json`** — reload the extension at `chrome://extensions`, then reload the page.
 - **`anti-pause.js`** — reload the extension **and** reload the page. This script injects at `document_start`; reloading only the extension will not re-run it on an already-open tab, so changes appear to have no effect.
 
 To verify anti-pause is live: open DevTools Console, enable the **Verbose** log level, and switch away from the window. Each suppressed pause logs `[anti-pause] 已阻止一次自動暫停`.
 
 ## Architecture
 
-Two content scripts that deliberately run in **different worlds** and at **different times**. This split is the central design constraint:
+Two `content_scripts` entries that deliberately run in **different worlds** and at **different times**. This split is the central design constraint:
 
 | File | World | Timing | Can use |
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Page globals (`window.player`), no `chrome.*` APIs |
-| `content.js` | isolated (default) | `document_end` | `chrome.*` APIs, DOM only — cannot see `window.player` |
-| `pages.js` | isolated (default) | `document_end` | Same entry as `content.js`, loaded first; defines `globalThis.VH` (page detection) |
+| `pages.js` | isolated (default) | `document_end` | Second entry, loaded first; defines `globalThis.VH` (page detection). DOM only — cannot see `window.player` |
 | `hero.js` | isolated (default) | `document_end` | Same entry; DOM only |
 | `browse.js` + `browse.css` | isolated (default) | `document_end` | Same entry; DOM only |
+
+There used to be a `content.js` in the second entry that capped the layout root at an inline `max-width: 150vh` and turned the video page's `div.flex[x-data]` into a column. It was removed in 1.4: `browse.css` now owns both jobs with plain CSS (see below), which also dropped a `MutationObserver` on `document.body`.
 
 `anti-pause.js` needs both properties and neither is negotiable:
 
@@ -48,7 +49,7 @@ A second, independent fallback layer listens for `pause` events in the capture p
 
 ### Cover carousel (`hero.js`)
 
-`hero.js` shares `content.js`'s `content_scripts` entry, so it adds no fourth domain list. It activates on two kinds of page. The home page is recognised by its cards, whose preview video id starts with `preview-home-` — no URL or locale-prefix matching. The pages in `VH.LIST_PAGES` (`pages.js`: `/dm<n>/*`, `/saved`) are recognised by `location.pathname` and collect every `.thumbnail video.preview` on the page. A URL gate is required there because video pages also render recommendation cards as `.thumbnail`; adding a page means adding a regex to `LIST_PAGES`, not a `matches` entry. On the home page the host carries `data-bleed`, which switches the shadow styles to full-bleed (no radius, header height added to height and top padding); the host's actual position is set by `browse.js`.
+`hero.js` shares the second `content_scripts` entry with `browse.js`, so it adds no extra domain list. It activates on two kinds of page. The home page is recognised by its cards, whose preview video id starts with `preview-home-` — no URL or locale-prefix matching. The pages in `VH.LIST_PAGES` (`pages.js`: `/dm<n>/*`, `/saved`) are recognised by `location.pathname` and collect every `.thumbnail video.preview` on the page. A URL gate is required there because video pages also render recommendation cards as `.thumbnail`; adding a page means adding a regex to `LIST_PAGES`, not a `matches` entry. On the home page the host carries `data-bleed`, which switches the shadow styles to full-bleed (no radius, header height added to height and top padding); the host's actual position is set by `browse.js`.
 
 - **Data comes only from the rendered DOM.** The site sits behind Cloudflare, so fetching index HTML (the approach better-viewing's home page uses) is not reliable. Each card yields `{id, href, title, tags, cover, preview}`: the id is the path segment of the video's `data-src` (so it does not depend on each page's video id format), the CDN base is derived from the video's `data-src` by dropping `/preview.mp4`, and `cover-n.jpg` (800×537, same as `cover.jpg`) is tried before `cover-t.jpg` (330×222, the list thumbnail). `preview.mp4` is the only preview the CDN serves — 320×180, ~8.7 s, H.264; `preview-hd` / `-720p` / `-1080p` / `-n` / `-l` / `-h` all 404 (measured 2026-09-30) — so the hero frame upscales it. Badges are `x-show` anchors, so only those whose inline `display` is not `none` count.
 - **Cards are rendered by Alpine after `document_end`**, so a debounced `MutationObserver` re-runs `refresh()`: re-mount the host if it was removed, collect new cards, start on the first arrival. New items are inserted at random positions after `at`, as in better-viewing's `heroAdd()`.
@@ -60,10 +61,10 @@ A second, independent fallback layer listens for `pause` events in the capture p
 
 `pages.js` defines `globalThis.VH` — `LIST_PAGES`, `LAYOUT_ROOT` and `kind()` — which `hero.js` and `browse.js` both read; scripts in one `content_scripts` entry share an isolated world, so it must stay first in that entry's `js` array. `kind()` returns `"home"` when `div.is-home` exists (a server-rendered class on the home layout root), `"list"` for `LIST_PAGES`, otherwise `null`.
 
-`browse.js` adds `vh-home` / `vh-list` to `<html>`, and **every rule in `browse.css` is scoped under those classes** — `content_scripts.css` injects on every page of the domain, including video pages, so an unscoped rule would leak there. The split is: CSS does all the layout; JS only marks elements, inserts its own nodes, and measures.
+`kind()` also returns `"video"` when a layout root contains `video.player` (server-rendered). `browse.js` adds `vh-wide` to `<html>` on every page that has a layout root, then `vh-home` / `vh-list` / `vh-video` by kind, and **every rule in `browse.css` is scoped under those classes** — `content_scripts.css` injects on every page of the domain, so an unscoped rule would leak everywhere. The split is: CSS does all the layout; JS only marks elements, inserts its own nodes, and measures.
 
 - **Never write `display` on anything Alpine toggles with `x-show`** (the login-modal lesson below). Rows hide the `x-show` placeholder card simply by not touching its inline `display: none`. The original list toolbar (`div.flex.justify-between.mb-6`) is hidden with a class because it carries no `x-show` itself.
-- **Home width**: `content.js` skips `.is-home` roots (no 150vh cap), and `browse.css` drops `sm:container`'s `max-width` inside the home root in favour of `--vh-gutter` side padding, so the rows start near the left edge like Netflix instead of being centred.
+- **Edge-to-edge layout** (`vh-wide`, all pages): non-home layout roots lose `sm:container`'s `max-width` and centring in favour of `--vh-gutter` side padding. The home root has no `sm:container`; there the same padding goes on each section (`.is-home .sm:container`), which is why the root rule excludes `.is-home`. No `!important` is needed because nothing writes an inline width any more.
 - **Rows**: each `div.grid` in the home root gets `data-vh-row` and its parent `data-vh-section`, except the random section, recognised by its `button.button-primary` (好手氣). Rows are flex + `scroll-snap`; `--per` (1.8 / 2.6 / 3.4 / 4.4 by width) sets how many cards fit, the fraction being the deliberate peek. A horizontal scroller clips vertically too, so `--lift` / `--lead` padding with matching negative margins leave room for the hover scale (`--vh-zoom`, 1.3×, mirrored by `ZOOM` in `browse.js`). That is not enough horizontally, so a `pointerover` handler sets each card's `transform-origin` to its left or right edge when the scaled card would cross the row's (or viewport's) edge. The `--lift` overlap covers the bottom of each section's title row, so the title row and the load-more link sit at `z-index: 5`, a hovered card at 6, and the arrows at 7 so an enlarged edge card cannot cover them. The right side bleeds to the viewport edge via `--vh-bleed`, and the arrows use `--vh-edge` / `--vh-pad`; all three are **measured in `layoutRows()`, not `100vw`**, because `100vw` includes the scrollbar and would add a horizontal scrollbar on Windows. Arrows are the extension's own buttons appended to the section, positioned to the row's `offsetTop` / `offsetHeight`.
 - **Keyboard**: `tidyCards()` sets `tabindex=-1` on every card link except the title (`.my-2 a`), so Tab stops once per card; ←/→ inside a row moves between cards. The list page already binds ←/→ to page turns (`@keyup.arrow-right.window`), so row keys exist only on the home page.
 - **List grid** is widened from the site's 2 / 3 / 4 columns to 1 / 2 / 3 (`grid-template-columns` override, the grid itself has no `x-show`).
@@ -73,23 +74,29 @@ A second, independent fallback layer listens for `pause` events in the capture p
 - **Home search block** (root's `div.flex-col` containing `div > form`) is hidden; the header's search toggle remains. That container has only a `:class` binding (`pb-8`), no `x-show`.
 - One debounced `MutationObserver` on the layout root (not `body`) re-runs `refresh()`: recommendation cards and the hero arrive after `document_end`.
 
+### Video page (`vh-video`)
+
+The page's `div.flex[x-data]` holds the sidebar (`div.order-last`, server-rendered inline `max/min-width: 300px`) and the main column (`div.flex-1.order-first`), whose children are: the player block (first `div[x-data]`), `div.mt-4` (h1 + 收藏/片單/分享), the share and playlist panels (`x-show`), `div.under_player` (ad), `div.mb-8` (詳情/磁力下載 tabs) and `div.relative.overflow-hidden` (related grid, with an ad iframe above it).
+
+- **Grid with `display: contents`**: `div.flex[x-data]` becomes a grid and the main column `display: contents`, so its children are grid items and the player can span both columns without moving DOM. Neither element has `x-show`. The share/playlist panels do, so they only get `order` / `grid-row` / `grid-column`.
+- **≥1280px**: columns `1fr 380px`; rows player / title / share / playlist / details / **`1fr` filler** / related. The sidebar spans rows 2–6; when it is taller than the left column, its extra height goes to the flexible filler row instead of being spread over the left column's rows as gaps. Player and related span both columns. Below 1280px it is one column ordered by `order`, and the sidebar's inner `div` becomes an auto-fill grid. Tailwind still hides the sidebar below 1024px.
+- **Theater band**: the player block gets a black background stretched to the viewport with negative `--vh-gutter` margins; its children are capped at `--vh-player-w` = `(100vh − header) × 16/9` (min 480px) and centred, so the picture fills the visible height; the loop bar sits just below the fold. Plyr fullscreen uses its own container and is unaffected.
+- **Details**: the promo `ul.list-none` is hidden; each `div.space-y-2 > div.text-secondary` row is a wrapping flex with a hanging-indent label, and `font-size: 0` on the row (reset on children) hides the bare-text commas between links. That is why the indent is `--vh-label-w` in px: an `em` on the row resolves to 0 while the label's own `em` is 14px, which pushed the labels out of the column.
+- `browse.js` removes the sidebar's inline width (CSS cannot beat it; Alpine does not manage it) and inserts「接著看」; the related grid becomes a row like the home page's (`rowGrids()` returns only `div.relative.overflow-hidden > div.grid` here) with an inserted「相關影片」heading, and its section's `overflow-hidden` is overridden so the bleed and hover scale are not clipped. Hover scale on this page applies only to row cards — the 165px sidebar thumbnails do not enlarge.
+- Row ←/→ only act when focus is on a card, so Plyr's own arrow-key seeking is unaffected.
+- Ads hidden: `.under_player`, the iframe above the related grid, the sidebar's `div.space-y-6` with iframes, and the corner ad.
+
 ### Site coupling
 
-All three scripts are tightly bound to the target site's internals and will silently stop working if the site changes:
+Every script is tightly bound to the target site's internals and will silently stop working if the site changes:
 
 - `anti-pause.js` depends on the global being named `player` and exposing a `pause()` method.
 - `hero.js` depends on cards being `.thumbnail` containing `video.preview` whose `data-src` is `<cdn>/<id>/preview.mp4` (on the home page the video id must also start with `preview-home-`), and the title in `.my-2 a`.
-- `browse.js` depends on: home root `div.is-home`; sections being the grid's parent with the title row as first child; the random section's `button.button-primary`; the list toolbar `div.flex.justify-between.mb-6` holding `.relative > a > span` labels (`名稱: 值`) and menu `div a[href]`; the fixed header `div.fixed.z-max.w-full`; the pagination inside `nav`.
-- `content.js` depends on Tailwind/Alpine.js markup — it finds the layout roots `div.content-without-search` / `div.content-with-search`, then queries `div[x-data].flex` *within* them. It re-applies styles from a `MutationObserver` on `document.body` because the page swaps this markup in dynamically.
+- `browse.css` / `browse.js` depend on: the video page structure listed under *Video page*; home root `div.is-home`; sections being the grid's parent with the title row as first child; the random section's `button.button-primary`; the list toolbar `div.flex.justify-between.mb-6` holding `.relative > a > span` labels (`名稱: 值`) and menu `div a[href]`; the fixed header `div.fixed.z-max.w-full`; the pagination inside `nav`.
 
-**Do not widen the `div[x-data].flex` selector back to a document-wide query.** `x-data` marks every Alpine component root on the page, and Alpine's `x-show` toggles elements by writing inline `display`. A global query therefore fights Alpine for the same property on components that have nothing to do with the video layout, and the `MutationObserver` re-fights it on every DOM change. The observed symptom was the login modal (opened by the favourite button) failing to appear at all. Two guards prevent this and both matter:
+**Why nothing writes `display` on `x-show` elements.** Alpine's `x-show` toggles elements by writing inline `display`. The removed `content.js` once queried `div[x-data].flex` across the whole document and forced `display: flex` on matches; `x-data` marks every Alpine component root, so it fought Alpine for that property on unrelated components, and its `MutationObserver` re-fought it on every DOM change. The observed symptom was the login modal (opened by the favourite button) failing to appear at all — not, as fighting over `display` naively suggests, the element getting forced visible. The rule that came out of it: scope every selector to a layout root or a specific known element, and leave `display` on `x-show` elements to Alpine. When something like this recurs, bisect against the live page rather than reasoning about it — disable one `content_scripts` entry in `manifest.json`, then one block of `browse.css`, and it localises in a couple of reload cycles.
 
-- the query runs **inside** the `div.content-*` layout roots, not on `document`;
-- elements carrying `x-show`, or computing to `position: fixed`, are skipped — those are Alpine-controlled or overlays.
-
-Note the failure mode is not "the element gets forced visible", which is what fighting over `display` naively suggests. Bisect against the live page rather than reasoning about it; disabling one content script in `manifest.json`, then one block within `content.js`, localises it in two reload cycles.
-
-The target domains are listed in three separate places in `manifest.json`: `host_permissions`, and the `matches` array of each of the two `content_scripts` entries. Adding, removing, or changing a domain means editing all three lists — miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
+The target domains are listed in three separate places in `manifest.json`: `host_permissions`, and the `matches` array of each of the two `content_scripts` entries (`anti-pause.js`, and `pages.js` / `hero.js` / `browse.js`). Adding, removing, or changing a domain means editing all three lists — miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
 
 ### Diagnosing a regression
 
@@ -116,6 +123,6 @@ The stack trace identifies whether the pause still routes through Plyr (`wt.paus
 
 ## Constraints
 
-- The extension has **no background service worker, no `action`, and no `permissions`** — only `host_permissions`. An earlier version had a `Ctrl+Shift+Q` hotkey backed by `background.js` plus `tabs`/`scripting`/`activeTab`/`windows` permissions; all of it was removed. Adding any `chrome.*` API call back into `content.js` requires restoring the matching permission.
+- The extension has **no background service worker, no `action`, and no `permissions`** — only `host_permissions`. An earlier version had a `Ctrl+Shift+Q` hotkey backed by `background.js` plus `tabs`/`scripting`/`activeTab`/`windows` permissions; all of it was removed. Adding any `chrome.*` API call to a content script requires restoring the matching permission.
 - `world: "MAIN"` requires Chrome 111 or newer.
 - `all_frames` is intentionally omitted: the player lives in the top-level frame, so injecting into ad iframes would be pure overhead.

@@ -11,6 +11,8 @@ globalThis.VH = {
     kind() {
         if (document.querySelector("div.is-home")) return "home";
         if (this.LIST_PAGES.some(re => re.test(location.pathname))) return "list";
+        // 影片頁：播放器的 <video class="player"> 伺服器端就在 HTML 裡
+        if (document.querySelector(`:is(${this.LAYOUT_ROOT}) video.player`)) return "video";
         return null;
     },
 };
