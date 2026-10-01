@@ -41,7 +41,7 @@ html.vh-home .is-home > div.flex-col:has(> div > form) {
 html.vh-home [data-vh-section] + div.absolute.w-full.text-center {
     position: relative;         /* 疊在上一列的 --lift 上面才點得到 */
     z-index: 5;
-    padding: 4px 0 8px;
+    padding: 0 0 4px;
 }
 /* 向下箭頭轉成 >：新卡片是接在橫列右邊，不是往下長 */
 html.vh-home [data-vh-section] + div.absolute.w-full.text-center > a svg {
@@ -102,6 +102,7 @@ html.vh-list .thumbnail .bg-red-800 {
 /* ── 首頁：區塊標題列 ──────────────────────────────────── */
 html.vh-home [data-vh-section] {
     position: relative;
+    margin-bottom: 0;           /* 原本 mb-5；區塊間距全由下面標題列的 padding 決定 */
 }
 /* 橫列的 --lift 會往上蓋住標題列下緣：標題列疊在橫列上面，「更多」才點得到；
  * hover 的卡片 z-index 再更高，放大時壓過標題列 */
@@ -110,7 +111,8 @@ html.vh-home [data-vh-section] > div.flex:first-child {
     z-index: 5;
     justify-content: flex-start;
     gap: 16px;
-    padding-top: 28px;          /* 原本 pt-10，橫列比網格矮，區塊間距跟著收 */
+    padding-top: 16px;          /* 原本 pt-10 / pb-6，橫列比網格矮，區塊間距跟著收 */
+    padding-bottom: 10px;
 }
 html.vh-home [data-vh-section] > div.flex:first-child > .flex-1 {
     flex: 0 1 auto;             /* 「更多」貼在標題旁邊，不要被推到最右邊 */
