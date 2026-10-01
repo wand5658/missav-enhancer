@@ -302,11 +302,50 @@ html.vh-list .vh-chip:focus-visible {
     outline: 2px solid var(--vh-focus);
     outline-offset: 2px;
 }
-html.vh-list .vh-page {
+/* 工具列右側的翻頁器：‹ 第 [N] / M 頁 › */
+html.vh-list .vh-mini {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+}
+html.vh-list .vh-mini-arrow {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    transition: background-color .15s;
+}
+html.vh-list a.vh-mini-arrow:hover { background: rgba(236, 239, 244, .16); }
+html.vh-list .vh-mini-arrow[aria-disabled] { opacity: .3; }
+html.vh-list .vh-mini-arrow svg { width: 18px; height: 18px; }
+html.vh-list .vh-mini-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
     font-size: 13px;
     color: var(--vh-dim);
-    font-variant-numeric: tabular-nums;
+}
+html.vh-list :is(.vh-mini-box, .vh-jump) input {
+    width: 64px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid rgba(236, 239, 244, .18);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 14px;
+    text-align: center;
+    color: var(--vh-ink);
+    background: rgba(0, 0, 0, .25);
+}
+html.vh-list :is(.vh-mini-box, .vh-jump) input:focus {
+    outline: none;
+    border-color: var(--vh-focus);
 }
 
 /* 窄螢幕：每組一行，選項橫向捲動，不要把工具列撐成半個螢幕高 */
@@ -318,20 +357,104 @@ html.vh-list .vh-page {
         scrollbar-width: none;
     }
     html.vh-list .vh-chips::-webkit-scrollbar { display: none; }
-    html.vh-list .vh-page { margin-left: 0; }
+    html.vh-list .vh-mini { margin-left: 0; }
+    html.vh-list .vh-mini-box span { display: none; }
 }
 
-/* 分頁：點擊範圍至少 40×40，目前頁用焦點色 */
-html.vh-list nav a.inline-flex,
-html.vh-list nav span.inline-flex {
-    min-width: 40px;
-    min-height: 40px;
-    justify-content: center;
+/* 底部分頁列：兩端大按鈕、中間以目前頁為中心的頁碼、最下面跳頁。原本的分頁列藏起來（.vh-gone） */
+html.vh-list .vh-pager {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    margin-top: 48px;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(255, 255, 255, .04);
 }
-html.vh-list nav span > span.rounded-lg {
+html.vh-list .vh-big {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    transition: background-color .15s, transform .15s;
+}
+html.vh-list a.vh-big:hover { background: rgba(236, 239, 244, .16); }
+html.vh-list a.vh-big:active { transform: scale(.97); }
+html.vh-list .vh-big[aria-disabled] { opacity: .3; }
+html.vh-list .vh-big.prev { justify-self: start; }
+html.vh-list .vh-big.next { justify-self: end; background: rgba(136, 192, 208, .18); }
+html.vh-list a.vh-big.next:hover { background: rgba(136, 192, 208, .3); }
+html.vh-list .vh-big svg { width: 18px; height: 18px; }
+html.vh-list .vh-big kbd {
+    padding: 1px 6px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 4px;
+    font: 11px/1.4 ui-monospace, monospace;
+    color: var(--vh-dim);
+    background: rgba(0, 0, 0, .3);
+}
+html.vh-list .vh-nums {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+}
+html.vh-list .vh-num {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    transition: background-color .15s;
+}
+html.vh-list a.vh-num:hover { background: rgba(236, 239, 244, .08); }
+html.vh-list .vh-num[aria-current] {
     font-weight: 700;
     color: #242933;
     background: var(--vh-focus);
+}
+html.vh-list .vh-gap { padding: 0 4px; color: var(--vh-dim); }
+html.vh-list .vh-jump {
+    grid-column: 1 / -1;
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--vh-dim);
+}
+html.vh-list .vh-jump input { width: 72px; height: 34px; }
+html.vh-list .vh-jump button {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    transition: background-color .15s;
+}
+html.vh-list .vh-jump button:hover { background: rgba(236, 239, 244, .16); }
+html.vh-list :is(.vh-mini, .vh-pager) :is(a, button):focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+/* 窄螢幕：大按鈕只留箭頭，頁碼只留目前頁前後一頁和頭尾 */
+@media (max-width: 700px) {
+    html.vh-list .vh-pager { grid-template-columns: auto 1fr auto; padding: 14px; }
+    html.vh-list .vh-big { padding: 0 16px; }
+    html.vh-list .vh-big :is(.vh-big-label, kbd) { display: none; }
+    html.vh-list .vh-nums { justify-content: center; }
+    html.vh-list .vh-num.vh-far { display: none; }
 }
 
 /* ── 影片頁 ────────────────────────────────────────────── */

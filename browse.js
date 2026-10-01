@@ -190,28 +190,184 @@
         }
 
         const page = pageInfo();
-        if (page) {
-            const p = document.createElement("span");
-            p.className = "vh-page";
-            p.textContent = page.total ? `第 ${page.now} / ${page.total} 頁` : `第 ${page.now} 頁`;
-            bar.append(p);
-        }
+        if (page) bar.append(miniPager(page));
 
         old.before(bar);
         old.classList.add("vh-gone");
     }
 
+    // 網站原本的分頁列（不是自己插的 .vh-pager / .vh-mini）
+    function siteNav() {
+        return root.querySelector("nav:not(.vh-pager, .vh-mini)");
+    }
+
+    // { now, total }，都是數字；total 0 表示不知道
     function pageInfo() {
-        const nav = root.querySelector("nav");
+        const nav = siteNav();
         if (!nav) return null;
         // 目前頁是分頁列裡唯一不是連結的數字
         const cur = [...nav.querySelectorAll("span")].find(s =>
             !s.querySelector("*") && /^\d+$/.test(s.textContent.trim()) && !s.closest("a"));
-        const now = cur ? cur.textContent.trim() : (new URLSearchParams(location.search).get("page") || "1");
+        const now = parseInt(cur ? cur.textContent : new URLSearchParams(location.search).get("page")) || 1;
+        // 總頁數：手機版輸入框旁的「/ 2000」；沒有就取頁碼連結裡最大的
         const tot = [...nav.querySelectorAll("span")]
             .map(s => /^\/\s*(\d+)$/.exec(s.textContent.trim()))
             .find(Boolean);
-        return { now, total: tot ? tot[1] : "" };
+        const linked = [...nav.querySelectorAll("a[href]")]
+            .map(a => parseInt(new URL(a.href, location.href).searchParams.get("page")) || 0);
+        return { now, total: tot ? parseInt(tot[1]) : Math.max(0, ...linked) };
+    }
+
+    function pageUrl(n) {
+        const u = new URL(location.href);
+        u.searchParams.set("page", n);
+        u.hash = "";
+        return u.href;
+    }
+
+    // 回傳是否真的換頁；超出範圍就夾到頭尾
+    function goPage(n, { now, total }) {
+        n = parseInt(n);
+        if (!n) return false;
+        n = Math.max(1, total ? Math.min(total, n) : n);
+        if (n === now) return false;
+        location.href = pageUrl(n);
+        return true;
+    }
+
+    const ICON_PREV = "M15 5l-7 7 7 7";
+    const ICON_NEXT = "M9 5l7 7-7 7";
+    function icon(d) {
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+    }
+
+    // 上一頁 / 下一頁：能去就是真的連結（中鍵、Ctrl 點可開新分頁），到頭了換成不能點的 span
+    function pageLink(n, ok, cls, label, html) {
+        const el = document.createElement(ok ? "a" : "span");
+        el.className = cls;
+        el.setAttribute("aria-label", label);
+        if (ok) el.href = pageUrl(n);
+        else el.setAttribute("aria-disabled", "true");
+        el.innerHTML = html;
+        return el;
+    }
+
+    function pageInput(label) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.inputMode = "numeric";
+        input.maxLength = 5;
+        input.setAttribute("aria-label", label);
+        return input;
+    }
+
+    // ── 列表頁：工具列右側的翻頁器 ‹ 第 [N] / M 頁 › ────────────
+    // 工具列黏在頁首下面，捲到一半也能換頁。頁碼點一下全選，Enter 跳頁，Esc / 離開還原
+    function miniPager(page) {
+        const { now, total } = page;
+        const nav = document.createElement("nav");
+        nav.className = "vh-mini";
+        nav.setAttribute("aria-label", "翻頁");
+
+        const box = document.createElement("label");
+        box.className = "vh-mini-box";
+        const input = pageInput("頁碼");
+        input.value = now;
+        input.addEventListener("focus", () => input.select());
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter") { if (!goPage(input.value, page)) input.value = now; }
+            else if (e.key === "Escape") { input.value = now; input.blur(); }
+        });
+        input.addEventListener("blur", () => { input.value = now; });
+        const pre = document.createElement("span");
+        pre.textContent = "第";
+        const post = document.createElement("span");
+        post.textContent = total ? `/ ${total} 頁` : "頁";
+        box.append(pre, input, post);
+
+        nav.append(
+            pageLink(now - 1, now > 1, "vh-mini-arrow", "上一頁", icon(ICON_PREV)),
+            box,
+            pageLink(now + 1, !total || now < total, "vh-mini-arrow", "下一頁", icon(ICON_NEXT)),
+        );
+        return nav;
+    }
+
+    // ── 列表頁：底部分頁列 ────────────────────────────────────
+    // 兩端大按鈕；中間頁碼以目前頁為中心（1 … p-2 p-1 [p] p+1 p+2 … M）；最下面跳頁。
+    // 原本的分頁列只用 class 藏起來（它沒有 x-show）：它身上綁著網站的 → 換頁，藏起來照樣有效
+    function initPager() {
+        const nav = siteNav();
+        if (!nav || nav.classList.contains("vh-gone")) return;
+        const page = pageInfo();
+        if (!page || page.total < 2) return;
+        const { now, total } = page;
+
+        const bar = document.createElement("nav");
+        bar.className = "vh-pager";
+        bar.setAttribute("aria-label", "分頁");
+
+        const nums = document.createElement("div");
+        nums.className = "vh-nums";
+        const show = new Set([1, total]);
+        for (let d = -2; d <= 2; d++) if (now + d >= 1 && now + d <= total) show.add(now + d);
+        let prev = 0;
+        for (const n of [...show].sort((a, b) => a - b)) {
+            if (n - prev > 1) {
+                const gap = document.createElement("span");
+                gap.className = "vh-gap";
+                gap.textContent = "…";
+                nums.append(gap);
+            }
+            const el = document.createElement(n === now ? "span" : "a");
+            el.className = "vh-num" + (Math.abs(n - now) > 1 ? " vh-far" : "");
+            el.textContent = n;
+            if (n === now) el.setAttribute("aria-current", "page");
+            else { el.href = pageUrl(n); el.setAttribute("aria-label", `第 ${n} 頁`); }
+            nums.append(el);
+            prev = n;
+        }
+
+        const form = document.createElement("form");
+        form.className = "vh-jump";
+        const input = pageInput("跳到頁碼");
+        const go = document.createElement("button");
+        go.type = "submit";
+        go.textContent = "前往";
+        const t1 = document.createElement("span");
+        t1.textContent = "跳到第";
+        const t2 = document.createElement("span");
+        t2.textContent = "頁";
+        form.append(t1, input, t2, go);
+        form.addEventListener("submit", e => {
+            e.preventDefault();
+            if (!goPage(input.value, page)) input.value = "";
+        });
+
+        bar.append(
+            pageLink(now - 1, now > 1, "vh-big prev", "上一頁",
+                `${icon(ICON_PREV)}<span class="vh-big-label">上一頁</span><kbd>←</kbd>`),
+            nums,
+            pageLink(now + 1, now < total, "vh-big next", "下一頁",
+                `<kbd>→</kbd><span class="vh-big-label">下一頁</span>${icon(ICON_NEXT)}`),
+            form,
+        );
+        nav.before(bar);
+        nav.classList.add("vh-gone");
+
+        // 網站在分頁列上綁 @keyup.arrow-right（第 1 頁沒有 ←）；沒綁的方向自己補，綁了就不重複
+        const bound = key => nav.getAttributeNames().some(a => a.startsWith(`@keyup.${key}`));
+        for (const [attr, key, to, ok] of [
+            ["arrow-left", "ArrowLeft", now - 1, now > 1],
+            ["arrow-right", "ArrowRight", now + 1, now < total],
+        ]) {
+            if (!ok || bound(attr)) continue;
+            addEventListener("keyup", e => {
+                if (e.key !== key || e.target.tagName === "INPUT") return;
+                if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                location.href = pageUrl(to);
+            });
+        }
     }
 
     // ── 影片頁：側欄 ──────────────────────────────────────────
@@ -357,6 +513,7 @@
             initRows();
         } else {
             initToolbar();
+            initPager();
             placeHero();
         }
         tidyCards();
