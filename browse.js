@@ -36,12 +36,15 @@
         host.style.marginTop = `${-(r.top + scrollY)}px`;     // 拉到文件頂端，讓頁首疊在上面
     }
 
-    // ── 橫列（首頁各區塊、影片頁的相關影片）───────────────────
+    // ── 橫列（首頁各區塊、影片頁的接著看與相關影片）───────────
     const rows = [];
 
     function rowGrids() {
-        // 影片頁只有最下面的相關影片；側欄推薦不是網格，不會被選到
-        if (kind === "video") return [...root.querySelectorAll("div.relative.overflow-hidden > div.grid")];
+        // 影片頁：側欄（接著看，推薦清單前 13 部）和最下面的相關影片（第 14～29 部）
+        if (kind === "video") return [
+            ...root.querySelectorAll(":scope > div.flex[x-data] > div.order-last > div"),
+            ...root.querySelectorAll("div.relative.overflow-hidden > div.grid"),
+        ];
         // 首頁：隨機區（標題列有「好手氣」按鈕）維持網格
         return [...root.querySelectorAll("div.grid")].filter(grid =>
             grid.parentElement && !grid.parentElement.querySelector(":scope > div button.button-primary"));
@@ -55,10 +58,10 @@
             grid.setAttribute("data-vh-row", "");
             section.setAttribute("data-vh-section", "");
             if (kind === "video") {
-                // 影片頁這區原本沒有標題
+                // 影片頁這兩區原本沒有標題（側欄的「接著看」也是自己加的）
                 const h = document.createElement("h2");
                 h.className = "vh-row-title";
-                h.textContent = "相關影片";
+                h.textContent = section.matches(".order-last") ? "接著看" : "相關影片";
                 grid.before(h);
             }
 
@@ -92,7 +95,7 @@
                 const to = cards[i + (e.key === "ArrowRight" ? 1 : -1)];
                 if (!to) return;
                 e.preventDefault();
-                const a = to.querySelector(".my-2 a") || to.querySelector("a[href]");
+                const a = cardTitle(to) || to.querySelector("a[href]");
                 a?.focus({ preventScroll: true });
                 to.scrollIntoView({ inline: "nearest", block: "nearest", behavior: reduced.matches ? "auto" : "smooth" });
             });
@@ -111,9 +114,16 @@
         return b;
     }
 
-    // 被 x-show 藏起來的 placeholder、<template> 都不算
+    // 橫列裡的每一格。被 x-show 藏起來的 placeholder、<template>、廣告都不算
     function visibleCards(grid) {
-        return [...grid.querySelectorAll(".thumbnail")].filter(c => c.offsetParent !== null);
+        return [...grid.children].filter(c =>
+            c.offsetParent !== null && (c.matches(".thumbnail") || c.querySelector(".thumbnail")));
+    }
+
+    // 卡片的標題連結：一般卡片在 .thumbnail 裡的 .my-2；影片頁側欄的卡片標題在縮圖旁邊的 div.flex-1
+    function cardTitle(el) {
+        return el.querySelector(".my-2 a") ||
+            el.closest("[data-vh-row] > div.flex")?.querySelector(":scope > div.flex-1 a[href]") || null;
     }
 
     function syncArrows({ grid, prev, next }) {
@@ -205,16 +215,13 @@
     }
 
     // ── 影片頁：側欄 ──────────────────────────────────────────
-    // 伺服器端寫死 inline max/min-width: 300px，CSS 蓋不過 inline，只能拿掉（Alpine 不管這個屬性）
+    // 伺服器端寫死 inline max/min-width: 300px，CSS 蓋不過 inline，只能拿掉（Alpine 不管這個屬性）。
+    // 側欄本身改成播放器下方的「接著看」橫列，由 initRows 處理
     function initSide() {
         const side = root.querySelector(":scope > div.flex[x-data] > div.order-last");
         if (!side || side.dataset.vhSide) return;
         side.dataset.vhSide = "1";
         side.style.maxWidth = side.style.minWidth = "";
-        const h = document.createElement("h2");
-        h.className = "vh-side-title";
-        h.textContent = "接著看";
-        (side.firstElementChild || side).prepend(h);
     }
 
     // ── 卡片：hover 放大的原點 ────────────────────────────────
@@ -237,10 +244,11 @@
 
     // ── 卡片：一張只停一次 Tab ────────────────────────────────
     // 每張卡有封面、徽章、片長、標題好幾個連結，全部指向同一頁。只留標題那個
+    // （影片頁側欄的標題在 .thumbnail 外面，要等 initRows 標好橫列才找得到，所以 refresh 先跑 initRows）
     function tidyCards() {
         root.querySelectorAll(".thumbnail").forEach(card => {
             if (card.dataset.vhTidy) return;
-            const title = card.querySelector(".my-2 a");
+            const title = cardTitle(card);
             if (!title) return;                 // Alpine 還沒渲染完，下一輪再處理
             card.dataset.vhTidy = "1";
             card.querySelectorAll("a[href]").forEach(a => { if (a !== title) a.tabIndex = -1; });
@@ -249,16 +257,16 @@
 
     // ── 啟動 ──────────────────────────────────────────────────
     function refresh() {
-        tidyCards();
         if (kind === "home") {
             initRows();
             placeHero();
         } else if (kind === "video") {
-            initRows();
             initSide();
+            initRows();
         } else {
             initToolbar();
         }
+        tidyCards();
     }
 
     refresh();

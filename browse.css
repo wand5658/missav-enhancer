@@ -100,7 +100,8 @@ html.vh-video [data-vh-row] .thumbnail .my-2.truncate {
 /* 一張卡只有標題能拿到焦點（browse.js 的 tidyCards），焦點框畫在封面上 */
 html.vh-home .thumbnail:focus-within > .relative,
 html.vh-list .thumbnail:focus-within > .relative,
-html.vh-video .thumbnail:focus-within > .relative {
+html.vh-video .thumbnail:focus-within > .relative,
+html.vh-video [data-vh-row] > div.flex:focus-within .thumbnail > .relative {
     outline: 2px solid var(--vh-focus);
     outline-offset: 2px;
 }
@@ -335,7 +336,7 @@ html.vh-list nav span > span.rounded-lg {
 
 /* ── 影片頁 ────────────────────────────────────────────── */
 /* 外層 div.flex[x-data] 改 grid；主欄 display: contents，讓它的子元素直接當 grid 的格子，
- * 播放器才能橫跨兩欄而不用搬 DOM。這兩層都沒有 x-show。
+ * 側欄和主欄的子元素變成兄弟，才能用 order 穿插排序而不用搬 DOM。這兩層都沒有 x-show。
  * 分享／片單面板有 x-show：只給它們 grid 位置和 order，不碰 display */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] {
     display: grid;
@@ -344,30 +345,18 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1.order-first { display: contents; }
 
-/* 單欄時的順序：播放器 → 標題 → 面板 → 詳情 → 接著看 → 相關影片 */
+/* 單欄：播放器 → 接著看（原側欄，改橫列）→ 標題 → 面板 → 詳情 → 相關影片。
+ * 推薦緊貼播放器，不用捲到底才換片 */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { order: 1; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { order: 2; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { order: 3; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="playlist"] { order: 4; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 { order: 5; }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { order: 6; margin-left: 0; height: auto; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { order: 2; margin-left: 0; height: auto; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { order: 3; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { order: 4; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="playlist"] { order: 5; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 { order: 6; }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > [data-vh-section] { order: 7; }
 
-/* 寬螢幕兩欄：右欄是接著看，跨標題到詳情；它比左欄高時，多出的高度由 1fr 的填充列吸收，
- * 左欄各列不會被撐出空隙 */
-@media (min-width: 1280px) {
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] {
-        grid-template-columns: minmax(0, 1fr) 380px;
-        grid-template-rows: auto auto auto auto auto 1fr auto;
-    }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { grid-column: 1 / -1; grid-row: 1; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { grid-column: 1; grid-row: 2; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { grid-column: 1; grid-row: 3; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="playlist"] { grid-column: 1; grid-row: 4; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 { grid-column: 1; grid-row: 5; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { grid-column: 2; grid-row: 2 / 7; padding-top: 24px; }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > [data-vh-section] { grid-column: 1 / -1; grid-row: 7; }
-}
+/* 文字區不要拉到整個寬螢幕，一行太長不好讀 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :is(div.mt-4, div[x-show*="share"], div[x-show*="playlist"], div.mb-8) { max-width: 1280px; }
 
 /* 劇院底帶：黑底撐到視窗兩邊；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度 */
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
@@ -440,29 +429,44 @@ html.vh-video [x-show="currentTab === 'video_details'"] div.space-y-2 > div.text
     background: rgba(235, 203, 139, .24);
 }
 
-/* 接著看（原側欄） */
-html.vh-video .vh-side-title,
-html.vh-video .vh-row-title {
-    margin: 0 0 12px;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--vh-ink);
-}
+/* 接著看、相關影片的標題 */
 html.vh-video .vh-row-title {
     position: relative;
     z-index: 5;             /* 跟首頁標題列一樣，疊在橫列的 --lift 上面 */
-    margin-top: 8px;
+    margin: 8px 0 12px;
     font-size: clamp(20px, 1.6vw, 26px);
+    font-weight: 700;
+    color: var(--vh-ink);
 }
-/* 單欄時接著看改多欄清單，不然 11 部直排太長 */
-@media (max-width: 1279px) {
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last > div {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-        column-gap: 24px;
-        width: 100%;
-    }
-    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last .vh-side-title { grid-column: 1 / -1; }
+
+/* 接著看（原側欄）改橫列。Tailwind 在 <1024px 會藏起來：網站在非桌面版讓側欄和相關影片都取推薦清單開頭，
+ * 兩區會重複，所以窄螢幕維持藏起來，只留相關影片。側欄本身沒有 x-show */
+@media (min-width: 1024px) {
+    html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { display: block; }
+}
+/* 每部原本是「165px 縮圖＋右邊標題」，改成縮圖在上、標題在下的卡片。
+ * 縮圖、標題兩格的寬度是伺服器端寫死的 inline style（不是 Alpine 綁的），只能用 !important 蓋 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last [data-vh-row] > div.flex {
+    flex-direction: column;
+    margin-bottom: 0;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last [data-vh-row] > div.flex > div.flex-none {
+    width: auto !important;
+    margin-right: 0;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last [data-vh-row] > div.flex > div.flex-1 {
+    width: auto !important;
+    padding-top: 8px;
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last [data-vh-row] > div.flex > div.flex-1 > div { height: auto; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last [data-vh-row] > div.flex > div.flex-1 .max-h-14 {
+    max-height: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.45;
+    min-height: 2.9em;
 }
 
 /* 相關影片：原本 overflow-hidden，會切掉橫列往右延伸和 hover 放大 */
