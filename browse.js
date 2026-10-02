@@ -516,6 +516,9 @@
     function initReveal() {
         if (!revealOn()) return;
         root.querySelectorAll(".thumbnail").forEach(card => {
+            // 沒有排版框的卡片不標：隨機區的預載卡藏在 .hidden 容器裡，「好手氣」會把它的
+            // innerHTML 原封不動複製進網格，標過的 vh-rv（透明）跟著過去卻再也不會被觀察到
+            if (!card.getClientRects().length) return;
             const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
             if (unit.dataset.vhRv) return;
             unit.dataset.vhRv = "1";
