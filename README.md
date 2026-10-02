@@ -1,62 +1,72 @@
-# Video Helper
+# MissAV Enhancer
 
-A Manifest V3 Chrome extension that stops a video page from auto-pausing playback when the browser window or tab loses focus, and restyles the site for easier browsing.
+**English** | [繁體中文](README.zh-TW.md)
 
-## Why
+An unofficial Chrome extension (Manifest V3) for **missav.ai** and **missav.ws**. It stops videos from pausing when you switch to another tab or window, and restyles the site for easier browsing. Every feature can be switched and tuned from a toolbar popup.
 
-Some video pages register handlers on `window` `blur` and `document` `visibilitychange` that call `pause()` as soon as you switch to another tab or another application. Chrome itself does not do this — a background tab keeps playing `<video>` normally — so the behaviour is entirely site-side JavaScript, and it can be intercepted.
+Not affiliated with the site. No data collection, no remote requests — see [Privacy](#privacy).
+
+<!-- Screenshots: docs/screenshots/*.png (covers blurred) -->
 
 ## Features
 
-- **Anti auto-pause** — playback survives `Alt+Tab`, `Ctrl+Tab`, and clicking into another window. Pausing yourself (the player button, spacebar) still works normally.
-- **Cover carousel** — a full-screen hero at the top of the home page, `/dm<n>/*` and `/saved` rotates through that page's own video cards: blurred cover backdrop, a cover frame that crossfades into the muted preview clip, title, prev/next, a progress bar, and a randomly chosen transition (parallax, zoom or 3D flip) on each switch. Pauses when the tab is hidden or the hero is scrolled mostly out of view; hovering does not pause it. The page background is tinted by the current cover.
-- **Home rows** — the home page's sections become Netflix-style horizontal rows (scroll-snap, a peek of the next card, hover arrows, ←/→ between cards, cards enlarge on hover). The random section stays a grid. In-page ads are hidden on the home and list pages.
-- **List toolbar** — the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with a mini pager (‹ editable page number ›).
-- **List pagination** — large previous/next buttons, page numbers centred on the current page, a jump-to-page box, and ←/→ to change pages.
-- **Scroll reveal** — video cards fade up one after another as they scroll into view (once per card).
-- **Edge-to-edge layout** — every page drops the centred container in favour of a small side gutter.
-- **Theater video page** — the player sits in a full-width band sized to fit the window height, lit by a blurred, slowly breathing glow from the video's own cover that tints the whole page; the up-next list becomes a scrolling row right under it, followed by title, actions, details and a second row of related videos. Ads and promo links are hidden.
-
-## Settings
-
-Click the toolbar icon to open the settings popup (Traditional Chinese or English, following the browser). Each group — anti auto-pause, cover carousel, home page, list pages, video page, look and motion, ads — has a master switch and its own options: carousel pages, height, time per slide, transitions and speed; cards per row and hover zoom; list columns; theater layout and the space below the player; ambient light and page tint strength, glass panels, scroll reveal timing; and motion (follow the system, full, or reduced). Changes apply to open tabs immediately; the few that restructure a page are marked and offer a reload. Settings sync across browsers signed in to the same account and can be reset, exported and imported as JSON.
+- **No auto-pause**: playback keeps going through `Alt+Tab`, `Ctrl+Tab`, and clicks into another window. Pausing it yourself (the player button, spacebar) still works.
+- **Cover carousel**: a full-screen hero at the top of the home page, `/dm<n>/*` and `/saved` that cycles through that page's own videos. Each slide shows a blurred cover backdrop, a cover that crossfades into the muted preview clip, the title, prev/next buttons, a progress bar, and a random transition (parallax, zoom or 3D flip). The page background takes its tint from the current cover.
+- **Home rows**: the home page's sections become Netflix-style horizontal rows, with scroll-snap, a peek of the next card, arrows, ←/→ between cards, and cards that enlarge on hover.
+- **List toolbar**: the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with a mini pager.
+- **List pagination**: large prev/next buttons, page numbers centred on the current page, a jump-to-page box, and ←/→ to change pages.
+- **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
+- **Edge-to-edge layout, scroll reveal, ad hiding.**
 
 ## Install
 
-No build step — the repository *is* the extension.
+Chrome 111 or newer (Edge and other Chromium browsers work too).
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. **Load unpacked** → select this directory
+1. Download the latest `missav-enhancer-*.zip` from [Releases](../../releases) and unzip it somewhere permanent. Chrome loads the extension from that folder, so don't delete it afterwards.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the unzipped folder (the one that contains `manifest.json`).
 
-Requires Chrome 111 or newer (for `world: "MAIN"` content scripts).
+Or clone this repository and load its directory instead. There is no build step.
+
+### Updating
+
+An extension loaded this way does **not** update itself. To update, download the new release, replace the folder's contents, then click the reload icon on the extension's card in `chrome://extensions` and reload any open tabs. Your settings are kept.
+
+## Settings
+
+Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is in Traditional Chinese or English, following the browser's language. Each group (anti auto-pause, cover carousel, home page, list pages, video page, look and motion, ads) has a master switch and its own options. Changes apply to open tabs immediately; the few that restructure a page are marked and offer a reload. Settings sync across browsers signed in to the same account, and can be reset, exported and imported as JSON.
+
+## Privacy
+
+- The only permission is `storage`, used for your settings (`chrome.storage.sync`).
+- Host access is limited to `missav.ai` and `missav.ws`.
+- There is no background script, and the extension makes no network requests of its own. The carousel is built from video cards already on the page.
+- No analytics or tracking.
+
+## Other domains
+
+The site moves between domains. To add one, edit `manifest.json` in **three** places: `host_permissions`, and the `matches` of both `content_scripts` entries. Then reload the extension. Missing one makes the extension half-work. Optionally, also add the domain to the `SITE` regex in `popup.js`; it only drives the popup's "on this site" indicator.
+
+If a new official domain shows up, an issue or PR is welcome.
+
+## When it stops working
+
+The extension depends on the site's internal markup and its `player` global. When the site changes either, features stop working silently. Please [open an issue](../../issues/new/choose) with the domain, the page type (home / list / video) and your Chrome version.
 
 ## How it works
 
-The page's pause handlers all funnel through a single call — `window.player.pause()`, where `window.player` is a [Plyr](https://plyr.io/) instance. Rather than blocking the `blur` and `visibilitychange` events (which would break unrelated page features that legitimately listen for them), the extension intercepts just that one method.
+The site's pause handlers (`window` blur, `document` blur, `visibilitychange`) all call `window.player.pause()`, where `window.player` is a [Plyr](https://plyr.io/) instance. Instead of blocking those events, which would break unrelated page features, `anti-pause.js` runs in the page's main world at `document_start`, installs an accessor on `window.player` before the page assigns it, and wraps that instance's `pause`. A pause is allowed only if a click, key press or touch happened within the last 700 ms (adjustable), so your own pauses pass and focus-driven ones are dropped. A fallback resumes playback if something calls `pause()` on the `<video>` directly.
 
-`anti-pause.js` installs an accessor on `window.player` at `document_start`, before the page's own script assigns it, and wraps the instance's `pause` on the way through. The wrapper allows a pause only if a `click`, `keydown`, `touchstart`, or `pointerdown` happened within the last 700 ms (adjustable in the popup) — so a deliberate pause passes and a focus-driven one is dropped. Events still fire as normal; nothing else on the page changes behaviour.
-
-This requires the script to run in the **main world**, since an isolated-world content script gets its own `window` and cannot see the page's `player` global.
-
-A second fallback layer watches for `pause` events in the capture phase and resumes playback if the window has no focus and no gesture preceded it. This covers code that calls `pause()` on the `<video>` element directly, bypassing Plyr.
-
-## Files
+The restyle is plain CSS scoped under classes on `<html>`, plus scripts that mark elements, insert their own nodes and measure. They never write `display` on elements Alpine.js controls. [`CLAUDE.md`](CLAUDE.md) has the full architecture notes and a Console procedure for diagnosing regressions.
 
 | File | World | Timing | Purpose |
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
 | `settings.js` | isolated | `document_end` | Settings from `chrome.storage.sync` (shared with the popup) |
-| `pages.js` | isolated | `document_end` | Shared page detection (home / list / video) |
-| `hero.js` | isolated | `document_end` | Cover carousel on the home page, `/dm<n>/*`, `/saved` |
+| `pages.js` | isolated | `document_end` | Page detection (home / list / video) |
+| `hero.js` | isolated | `document_end` | Cover carousel |
 | `browse.js` + `browse.css` | isolated | `document_end` | Layout, rows, list toolbar and pagination, video page, scroll reveal |
 | `popup.html` / `.css` / `.js` | — | — | Settings popup |
-
-## Limitations
-
-Every script is coupled to the target site's internals. If the site renames its `player` global or changes the markup that `browse.css` / `browse.js` select, the extension stops having an effect — silently, since there is nothing to error on. `CLAUDE.md` documents a Console-based procedure for re-identifying the pause mechanism when that happens.
-
-The target domains are listed in three places in `manifest.json` — `host_permissions`, and the `matches` array of each of the two `content_scripts` entries. Pointing the extension elsewhere, or adding another domain, means editing all three; miss one and the extension half-loads, which looks like a site-side regression rather than a config error.
 
 ## License
 

@@ -1,0 +1,10 @@
+name: Suggestion / 建議
+description: A new feature, option or domain / 新功能、新選項或新網域
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Suggestion / 建議內容
+    validations:
+      required: true

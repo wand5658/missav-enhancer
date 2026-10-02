@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-An unpacked Chrome extension (Manifest V3) that patches one specific site, served from two domains — `missav.ai` and `missav.ws`. Both run the same frontend, so a single set of scripts and selectors covers them. Two unrelated concerns: prevent the page from auto-pausing video when the window or tab loses focus, and restyle the site — edge-to-edge layout on every page, a cover carousel (hero) on the home and list pages, Netflix-style scrolling rows on the home page, one-click filter/sort chips on list pages, and a theater-style video page with recommendation rows right under the player. Every feature can be switched and tuned from a toolbar popup (1.5).
+An unpacked Chrome extension (Manifest V3), published as **MissAV Enhancer**, that patches one specific site, served from two domains — `missav.ai` and `missav.ws`. Both run the same frontend, so a single set of scripts and selectors covers them. Two unrelated concerns: prevent the page from auto-pausing video when the window or tab loses focus, and restyle the site — edge-to-edge layout on every page, a cover carousel (hero) on the home and list pages, Netflix-style scrolling rows on the home page, one-click filter/sort chips on list pages, and a theater-style video page with recommendation rows right under the player. Every feature can be switched and tuned from a toolbar popup (1.5).
 
 There is no build step, no bundler, no package manager, no linter, and no test suite. The files in this directory *are* the extension — Chrome loads them as-is.
 
@@ -19,6 +19,12 @@ After editing:
 - **`anti-pause.js`** — reload the extension **and** reload the page. This script injects at `document_start`; reloading only the extension will not re-run it on an already-open tab, so changes appear to have no effect.
 
 To verify anti-pause is live: open DevTools Console, enable the **Verbose** log level, and switch away from the window. Each suppressed pause logs `[anti-pause] 已阻止一次自動暫停`.
+
+### Releases and docs
+
+The extension is published as **MissAV Enhancer** (manifest `name` / `short_name` / `default_title`, `popup.html`). It cannot go on the Chrome Web Store (adult-content policy), so users install a GitHub Release zip unpacked and update by hand. To release: bump `manifest.json` `version`, commit, push a tag `v<version>`. `.github/workflows/release.yml` refuses a tag that does not match the manifest, zips `manifest.json`, `*.js`, `*.css`, `popup.html`, `LICENSE` and `icons/*.png` into a `missav-enhancer-v<version>/` folder, and creates the release. A new top-level runtime file of another type (e.g. `.json`, `.html` page) must be added to that `cp` line, or the release zip silently lacks it.
+
+`README.md` (English) and `README.zh-TW.md` are kept in step — a feature or setting change updates both. Screenshots, if added, go in `docs/screenshots/` with covers blurred. Issue forms live in `.github/ISSUE_TEMPLATE/` (blank issues disabled).
 
 ## Architecture
 
