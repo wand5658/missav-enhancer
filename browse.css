@@ -34,9 +34,14 @@ html.vh-home .is-home .sm\:container {
 }
 
 /* ── 廣告收掉 ──────────────────────────────────────────────── */
-/* 設定「隱藏頁面廣告」：跟各頁改版開關無關，所以用 data-vh-kind 認頁面、不依賴 browse.js 標的屬性 */
+/* 設定「隱藏頁面廣告」：跟各頁改版開關無關，所以用 data-vh-kind 認頁面、不依賴 browse.js 標的屬性
+ * 右下角那格輪播 iframe 和 <a><img> 橫幅，只看 body 直屬的位置，不看內容；
+ * 第三方直播小窗是 CSS module 的雜湊 class（root--xxxx bottomRight--xxxx），只能比對前綴；
+ * 頁尾上方 300×250 的直播格是 tsyndicate 的廣告位（#ts_… / script[data-ts-spot]）。三者都沒有 x-show */
 html.vh-hide-ads[data-vh-kind="home"] .pt-16.pb-4.px-4:has(iframe),
-html.vh-hide-ads .fixed.right-2.bottom-2:has(iframe),
+html.vh-hide-ads body > .fixed.right-2.bottom-2,
+html.vh-hide-ads body > div[class*="bottomRight--"],
+html.vh-hide-ads div.space-y-5.mb-5:has([id^="ts_"], script[data-ts-spot]),
 html.vh-hide-ads[data-vh-kind="video"] .under_player,
 html.vh-hide-ads[data-vh-kind="video"] div.relative.overflow-hidden > div:has(> iframe),
 html.vh-hide-ads[data-vh-kind="video"] div.order-last div.space-y-6:has(iframe) {
