@@ -6,7 +6,24 @@
 
 與網站本身無關。不收集任何資料，也不會連到任何外部伺服器，詳見[隱私](#隱私)。
 
-<!-- 截圖：docs/screenshots/*.png（封面需模糊處理） -->
+![首頁的封面輪播](docs/screenshots/home-hero.jpg)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/home-rows.jpg" alt="首頁橫向列（滑鼠移上去放大）"><br><sub>首頁橫向列（滑鼠移上去放大）</sub></td>
+<td width="50%"><img src="docs/screenshots/list.jpg" alt="列表頁：篩選與排序按鈕、迷你換頁器"><br><sub>列表頁：篩選與排序按鈕、迷你換頁器</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/video.jpg" alt="劇院模式影片頁與環境光"><br><sub>劇院模式影片頁與環境光</sub></td>
+<td><img src="docs/screenshots/video-rows.jpg" alt="「接著看」橫向列、標題、按鈕與詳情"><br><sub>「接著看」橫向列、標題、按鈕與詳情</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/list-pager.jpg" alt="列表分頁"><br><sub>列表分頁</sub></td>
+<td align="center"><img src="docs/screenshots/popup.png" alt="設定面板" width="260"><br><sub>設定面板</sub></td>
+</tr>
+</table>
+
+<sub>截圖尺寸 1920×910（1080p 螢幕上最大化的 Chrome 視窗）。封面、預覽和標題都已模糊處理。</sub>
 
 ## 功能
 

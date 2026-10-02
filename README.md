@@ -6,7 +6,24 @@ An unofficial Chrome extension (Manifest V3) for **missav.ai** and **missav.ws**
 
 Not affiliated with the site. No data collection, no remote requests — see [Privacy](#privacy).
 
-<!-- Screenshots: docs/screenshots/*.png (covers blurred) -->
+![Cover carousel on the home page](docs/screenshots/home-hero.jpg)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/home-rows.jpg" alt="Home rows (hover zoom)"><br><sub>Home rows (hover zoom)</sub></td>
+<td width="50%"><img src="docs/screenshots/list.jpg" alt="List page: filter and sort chips, mini pager"><br><sub>List page: filter and sort chips, mini pager</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/video.jpg" alt="Theater video page with ambient light"><br><sub>Theater video page with ambient light</sub></td>
+<td><img src="docs/screenshots/video-rows.jpg" alt="Up-next row, title, actions and details"><br><sub>Up-next row, title, actions and details</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/list-pager.jpg" alt="List pagination"><br><sub>List pagination</sub></td>
+<td align="center"><img src="docs/screenshots/popup.png" alt="Settings popup" width="260"><br><sub>Settings popup</sub></td>
+</tr>
+</table>
+
+<sub>Screenshots at 1920×910 (a maximised Chrome window on a 1080p screen). Covers, previews and titles are blurred.</sub>
 
 ## Features
 
