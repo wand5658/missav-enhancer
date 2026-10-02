@@ -1,0 +1,43 @@
+name: Something stopped working / 功能失效
+description: A feature does nothing or looks broken / 某個功能沒作用或跑版
+labels: [bug]
+body:
+  - type: input
+    id: domain
+    attributes:
+      label: Domain / 網域
+      placeholder: missav.ws
+    validations:
+      required: true
+  - type: dropdown
+    id: page
+    attributes:
+      label: Page type / 頁面類型
+      multiple: true
+      options:
+        - Home / 首頁
+        - List (/dm…, /saved) / 列表頁
+        - Video / 影片頁
+        - Popup / 設定面板
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens / 發生了什麼
+      description: Which feature, what you expected, what you see. Please do not paste explicit screenshots. / 哪個功能、預期如何、實際如何。請勿貼露骨截圖。
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Extension and browser version / 擴充功能與瀏覽器版本
+      placeholder: 1.5 / Chrome 140
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors / Console 錯誤訊息
+      description: F12 → Console, reload the page, copy any red errors. / F12 → Console，重新整理頁面，複製紅色錯誤。
+      render: text

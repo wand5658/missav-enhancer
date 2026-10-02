@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Video Helper - Anti Auto-Pause & Restyle",
-  "short_name": "Video Helper",
+  "name": "MissAV Enhancer - Anti Auto-Pause & Restyle",
+  "short_name": "MissAV Enhancer",
   "version": "1.5",
   "description": "Stops the page from auto-pausing playback when the window or tab loses focus, and restyles the site: edge-to-edge layout, cover carousel, scrolling rows, one-click filter and sort, and a theater-style video page. Every feature can be tuned from the toolbar popup.",
   "icons": {
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Video Helper",
+    "default_title": "MissAV Enhancer",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -23,13 +23,13 @@
   ],
   "host_permissions": [
     "https://missav.ai/*",
-	"https://missav.ws/*"
+    "https://missav.ws/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://missav.ai/*",
-		"https://missav.ws/*"
+        "https://missav.ws/*"
       ],
       "js": [
         "anti-pause.js"
@@ -40,7 +40,7 @@
     {
       "matches": [
         "https://missav.ai/*",
-		"https://missav.ws/*"
+        "https://missav.ws/*"
       ],
       "js": [
         "settings.js",
