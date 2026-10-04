@@ -320,6 +320,7 @@
         host.hidden = !enabled();
         host.toggleAttribute("data-short", VHS.get("heroHeight") === "short");
         host.toggleAttribute("data-reduce", VHS.reduced());
+        host.toggleAttribute("data-hd", hdOn());
         ui.hero.style.setProperty("--slide", `${slideMs()}ms`);
         ui.hero.style.setProperty("--swap", `${swapMs()}ms`);
         sync();
@@ -477,6 +478,9 @@
     background: #000;
     box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
 }
+/* 高畫質預覽開著時畫框放大：播的是 480p / 720p 的正片，不再受封面 800px 的限制
+ * （封面只在影片開播前那一下看得到） */
+:host([data-hd]) .frame { width: min(1280px, 66%, calc((var(--h) - 76px) * 16 / 9)); }
 .frame img, .frame video {
     position: absolute;
     inset: 0;
