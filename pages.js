@@ -10,9 +10,10 @@ globalThis.VH = {
     // 首頁的 layout root 帶伺服器端就有的 is-home class，不用管網址或語系路徑
     kind() {
         if (document.querySelector("div.is-home")) return "home";
-        if (this.LIST_PAGES.some(re => re.test(location.pathname))) return "list";
-        // 影片頁：播放器的 <video class="player"> 伺服器端就在 HTML 裡
+        // 影片頁：播放器的 <video class="player"> 伺服器端就在 HTML 裡。
+        // 要先於列表頁判斷：影片網址也可能帶 dm 前綴（/dm2/mida-139），會被 LIST_PAGES 誤認
         if (document.querySelector(`:is(${this.LAYOUT_ROOT}) video.player`)) return "video";
+        if (this.LIST_PAGES.some(re => re.test(location.pathname))) return "list";
         return null;
     },
 };

@@ -6,6 +6,7 @@
     // 其他要輪播的頁面靠網址認（VH.LIST_PAGES，在 pages.js），收整頁的 .thumbnail，
     // 不依賴那些頁面的 video id 格式。
     const kind = VH.kind();
+    if (kind !== "home" && kind !== "list") return;     // 影片頁、其他頁都不輪播
     const CARD_VIDEO = kind === "list" ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
     const LAYOUT_ROOT = VH.LAYOUT_ROOT;
 
