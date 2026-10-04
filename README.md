@@ -55,9 +55,9 @@ Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is i
 
 ## Privacy
 
-- The only permission is `storage`, used for your settings (`chrome.storage.sync`).
+- The only permission is `storage`, used for your settings (`chrome.storage.sync`) and, for HD previews, a local cache of each video's stream address and picked clips (`chrome.storage.local`).
 - Host access is limited to `missav.ai` and `missav.ws`.
-- There is no background script, and the extension makes no network requests of its own. The carousel is built from video cards already on the page.
+- There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. Turn HD previews off and it makes no requests of its own.
 - No analytics or tracking.
 
 ## Other domains
@@ -81,6 +81,7 @@ The restyle is plain CSS scoped under classes on `<html>`, plus scripts that mar
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
 | `settings.js` | isolated | `document_end` | Settings from `chrome.storage.sync` (shared with the popup) |
 | `pages.js` | isolated | `document_end` | Page detection (home / list / video) |
+| `hd.js` | isolated | `document_end` | HD previews: finds the stream, picks clips, plays the montage |
 | `hero.js` | isolated | `document_end` | Cover carousel |
 | `browse.js` + `browse.css` | isolated | `document_end` | Layout, rows, list toolbar and pagination, video page, scroll reveal |
 | `popup.html` / `.css` / `.js` | — | — | Settings popup |
