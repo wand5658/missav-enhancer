@@ -198,25 +198,8 @@
         video.loop = true;
         video.playsInline = true;
         video.preload = "auto";
-        // 真的開始播才蓋上去，載入中那段看到的是封面的推近，不是黑畫面。
-        // 高畫質（hd.js）要先跳到挑好的起點，跳過去之前播的第 0 秒不算
-        const atStart = () => !s._hd || video.currentTime >= s._hd.s - 1;
-        video.addEventListener("playing", () => { if (atStart()) frame.dataset.live = "1"; });
-        video.addEventListener("timeupdate", () => {
-            if (!s._hd) return;
-            if (atStart() && !video.paused) frame.dataset.live = "1";
-            if (video.currentTime >= s._hd.s + VHD.CLIP_S) video.currentTime = s._hd.s;    // 只循環那一段
-        });
-        video.addEventListener("loadedmetadata", () => { if (s._hd) video.currentTime = s._hd.s; });
-        // 串流載不到（網址失效、網路）就退回 preview.mp4
-        video.addEventListener("error", () => {
-            if (!s._hd) return;
-            s._hd = null;
-            s._hdState = "none";
-            video.loop = true;
-            video.removeAttribute("src");
-            sync();
-        });
+        // 真的開始播才蓋上去，載入中那段看到的是封面的推近，不是黑畫面
+        video.addEventListener("playing", () => { frame.dataset.live = "1"; });
         frame.append(img, video);
 
         const text = document.createElement("div");
@@ -237,16 +220,20 @@
         s._video = video;
         s._preview = item.preview;
         s._frame = frame;
-        s._hd = null;
+        s._mont = null;                     // 高畫質的快剪播放器（hd.js 的 VHD.montage）
         s._hdState = hdOn() ? "wait" : "none";
         if (s._hdState === "wait") {
             // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4
             const done = (e, why) => {
                 if (s._hdState !== "wait") return;
                 console.debug("[hd] slide", item.id, e ? "hd" : `fallback(${why || "none"})`);
-                s._hd = e;
                 s._hdState = e ? "ready" : "none";
-                if (e) video.loop = false;
+                // 串流載不到（網址失效、網路）就退回 preview.mp4
+                if (e) s._mont = VHD.montage(frame, e, VHD.quality(frame.getBoundingClientRect().width), () => {
+                    s._mont = null;
+                    s._hdState = "none";
+                    sync();
+                });
                 sync();
             };
             VHD.resolve(item, VHS.get("heroHDPick")).then(done);
@@ -256,6 +243,7 @@
     }
 
     function stopVideo(s) {
+        s._mont?.stop();
         const v = s._video;
         if (!v) return;
         v.pause();
@@ -347,15 +335,15 @@
         const s = current();
         const v = s?._video;
         if (!v) return;
+        const p = s._mont || v;             // 高畫質快剪或原本的 preview.mp4，play / pause 介面一樣
         // 預覽影片設定關掉時連載都不載，只看封面
         if (document.hidden || off || VHS.reduced() || !enabled() || !VHS.get("heroPreview")) {
-            v.pause();
+            p.pause();
             return;
         }
         if (s._hdState === "wait") return;      // 高畫質還在準備，先停在封面
-        if (!v.getAttribute("src"))
-            v.src = s._hd ? VHD.src(s._hd, VHD.quality(s._frame.getBoundingClientRect().width)) : s._preview;
-        v.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
+        if (!s._mont && !v.getAttribute("src")) v.src = s._preview;
+        p.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
     }
 
     // ── 樣式（Shadow DOM 內，跟站台的 Tailwind 互不影響）────────
@@ -503,6 +491,9 @@
 }
 .frame video { opacity: 0; transition: opacity .8s ease; }
 .frame[data-live="1"] video { opacity: 1; }
+/* 高畫質快剪（hd.js 的 montage）：兩個 video 輪流，只顯示正在播的那個（data-on），硬切不淡入淡出 */
+.frame video.mv { opacity: 0; transition: none; }
+.frame[data-live="1"] video.mv[data-on] { opacity: 1; }
 .frame::after {
     content: '';
     position: absolute;

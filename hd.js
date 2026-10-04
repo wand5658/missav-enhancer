@@ -8,13 +8,18 @@
 // Chrome 原生播得了 HLS（canPlayType 回 maybe），不用 hls.js：<video src=m3u8> 再設 currentTime，
 // 瀏覽器只下載那一段的 4 秒分段。
 //
-// 起點怎麼挑：站台自己的 preview.mp4 只是在 10%、20%…80% 各剪 1 秒（2026-10 量過），沒有挑選；
-// 這裡抽幾張拖曳預覽圖（每張 6×6 格，約每 2 秒一格），每 12 秒一個窗格打分：
-// 膚色比例（太滿通常是暖色燈光或極近特寫，扣分）＋畫面變動量，窗格裡有換鏡頭、太暗或太平的不要。
+// 播法跟站台的 preview.mp4 一樣是快剪：每段 CLIP_S 秒就跳下一段，快速看過整部的內容。
+// 兩個 <video> 輪流：一個在播，另一個先跳到下一段的起點等著，換段時直接切，不用等緩衝。
+//
+// 片段怎麼挑：站台自己的 preview.mp4 只是在 10%、20%…80% 各剪 1 秒（2026-10 量過），沒有挑選；
+// 這裡在 15%～85% 抽 8 張拖曳預覽圖（每張 6×6 格，約每 2 秒一格），每張挑一段分數最高的：
+// 膚色比例（太滿通常是暖色燈光或極近特寫，扣分）＋畫面變動量，有換鏡頭、太暗或太平的不要。
 globalThis.VHD = (() => {
     const CDN = "https://surrit.com";
-    const CLIP_S = 12;                      // 每段播多長（3 個 HLS 分段）
-    const SAMPLE_AT = [0.3, 0.45, 0.6, 0.75];  // 抽哪幾張拖曳預覽圖（片長比例）；片頭多半是訪談，不抽
+    const CLIP_S = 1.3;                     // 每段播多久就換下一段
+    const SAMPLE_AT = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85];  // 抽哪幾張拖曳預覽圖（片長比例），一張出一段
+    const EVEN_AT = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];           // even：跟站台 preview.mp4 一樣的固定位置
+    const WIN_S = 6;                        // 打分的窗格長度：這段時間內不換鏡頭，剪出來的那一段才不會跨鏡頭
     const TILE_W = 48, TILE_H = 27;         // 打分用的縮圖尺寸
     const KEY = id => `hd:${id}`;
     const VER = 1;                          // 快取格式或挑選演算法改了就加一，舊的重算
@@ -157,7 +162,7 @@ globalThis.VHD = (() => {
     const skinScore = s => s <= 0.7 ? s / 0.7 : 1 - (s - 0.7);
 
     function bestWindow(tiles, step) {
-        const win = Math.max(2, Math.round(CLIP_S / step));
+        const win = Math.max(2, Math.round(WIN_S / step));
         const F = tiles.map(t => ({ idx: t.idx, ...features(t.px) }));
         for (let i = 1; i < F.length; i++) {
             const a = F[i - 1], b = F[i];
@@ -180,20 +185,18 @@ globalThis.VHD = (() => {
         return best;
     }
 
-    async function pickStart(info) {
+    async function pickClips(info) {
         const d = info.d;
-        const fallback = Math.round(d * 0.5);
-        if (!info.th || !d) return { s: fallback, how: "middle" };
+        const even = () => ({ c: EVEN_AT.map(f => Math.round(d * f)), how: "even" });
+        if (!info.th || !d) return even();
         const { th } = info;
         const step = d / th.n, per = th.col * th.row;
         const sheets = [...new Set(SAMPLE_AT.map(f => Math.floor(f * th.n / per)))];
-        let best = null;
-        for (const sh of sheets) {
-            const b = bestWindow(await sheetTiles(info.u, th, sh), step);
-            if (b && (!best || b.score > best.score)) best = b;
-        }
-        if (!best) return { s: fallback, how: "middle" };
-        return { s: Math.max(0, Math.min(Math.round(best.idx * step), d - CLIP_S - 1)), how: "smart", score: +best.score.toFixed(3) };
+        const found = await Promise.all(sheets.map(async sh => bestWindow(await sheetTiles(info.u, th, sh), step)));
+        // 窗格開頭常是上一個動作的尾巴，從窗格中間剪
+        const c = found.filter(Boolean).map(b => Math.min(Math.round(b.idx * step + WIN_S / 2 - CLIP_S / 2), d - 3));
+        if (c.length < 3) return even();
+        return { c, how: "smart" };
     }
 
     // ── 對外 ──────────────────────────────────────────────────
@@ -210,12 +213,14 @@ globalThis.VHD = (() => {
                 if (!info) return null;
                 e = info;
             }
-            if (e.s == null || e.how !== pick) {
-                const p = pick === "smart" ? await pickStart(e) : { s: Math.round((e.d || 0) * 0.5), how: "middle" };
-                e = { ...e, ...p };
+            const want = pick === "smart" ? "smart" : "even";
+            if (!Array.isArray(e.c) || e.how !== want && !(want === "smart" && e.picked)) {
+                const p = want === "smart" ? await pickClips(e) : { c: EVEN_AT.map(f => Math.round(e.d * f)), how: "even" };
+                e = { ...e, ...p, picked: want === "smart" };   // 挑過但退回 even 的不再重挑
+                delete e.s;                         // 舊版（單一長片段）的起點
                 putCache(item.id, e);
                 const mmss = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
-                log("pick", item.id, mmss(p.s), p, stats);
+                log("pick", item.id, p.how, p.c.map(mmss).join(" "), stats);
             }
             return e.u && e.d ? e : null;
         })().catch(err => { log("error", item.id, err); return null; })
@@ -233,7 +238,83 @@ globalThis.VHD = (() => {
 
     const src = (e, q) => `${CDN}/${e.u}/${q}/video.m3u8`;
 
+    // 快剪播放器：在 frame 裡放兩個 <video class="mv">，播的那個帶 data-on（hero.js 的 CSS 只顯示它）。
+    // 介面跟 <video> 一樣有 play() / pause()，另加 stop()；任一個載入失敗就收掉並呼叫 onFail
+    function montage(frame, e, q, onFail) {
+        const clips = e.c, n = clips.length;
+        const mk = () => {
+            const v = document.createElement("video");
+            v.className = "mv";
+            v.muted = v.defaultMuted = true;
+            v.playsInline = true;
+            v.preload = "auto";
+            v.src = src(e, q);
+            v.addEventListener("error", fail);
+            frame.append(v);
+            return v;
+        };
+        let a = 0, i = 0, timer = 0, dead = false;
+        const seekTo = (v, t) => {
+            if (v.readyState >= 1) v.currentTime = t;
+            else v.addEventListener("loadedmetadata", () => { v.currentTime = t; }, { once: true });
+        };
+        const ready = v => !v.seeking && v.readyState >= 3;
+        const vs = [mk(), mk()];
+        seekTo(vs[0], clips[0]);
+        seekTo(vs[1], clips[1 % n]);
+
+        function tick() {
+            const cur = vs[a];
+            if (cur.paused || cur.seeking) return;
+            const t = cur.currentTime;
+            // 跳到起點之後才顯示，跳過去之前播的第 0 秒不算
+            if (!cur.hasAttribute("data-on") && t >= clips[i] - 0.3) {
+                cur.setAttribute("data-on", "");
+                frame.dataset.live = "1";
+            }
+            if (t < clips[i] + CLIP_S) return;
+            const nxt = vs[1 - a];
+            if (!ready(nxt)) return;            // 下一段還沒好就多播一下這段
+            nxt.play().catch(() => {});
+            nxt.setAttribute("data-on", "");
+            cur.removeAttribute("data-on");
+            cur.pause();
+            a = 1 - a;
+            i = (i + 1) % n;
+            seekTo(cur, clips[(i + 1) % n]);    // 換下來的那個先去等再下一段
+        }
+        function fail() {
+            if (dead) return;
+            log("stream error", e.u);
+            stop();
+            onFail();
+        }
+        function stop() {
+            dead = true;
+            clearInterval(timer);
+            for (const v of vs) {
+                v.pause();
+                v.removeAttribute("src");           // 拿掉 src 才會真的中斷下載
+                v.load();
+                v.remove();
+            }
+        }
+        return {
+            play() {
+                if (dead) return Promise.resolve();
+                if (!timer) timer = setInterval(tick, 50);
+                return vs[a].play();
+            },
+            pause() {
+                clearInterval(timer);
+                timer = 0;
+                vs[a].pause();
+            },
+            stop,
+        };
+    }
+
     if (globalThis.VH?.kind?.() === "video") harvest();
 
-    return { resolve, quality, src, CLIP_S, stats, parse };
+    return { resolve, quality, montage, stats, parse };
 })();

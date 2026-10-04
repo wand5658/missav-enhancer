@@ -20,7 +20,7 @@ globalThis.VHS = (() => {
         heroPreview: true,
         heroHD: true,               // 高畫質預覽（hd.js）：拿不到就用原本的 preview.mp4
         heroHDQuality: "auto",      // auto / 480p / 720p / 1080p
-        heroHDPick: "smart",        // smart（看拖曳預覽圖挑）/ middle（片長一半）
+        heroHDPick: "smart",        // smart（看拖曳預覽圖挑）/ even（10%～80% 固定位置，跟站台的預覽一樣）
         heroTint: true,
 
         home: true,
