@@ -67,9 +67,11 @@ html.vh-home [data-vh-section] + div.absolute.w-full.text-center > a svg {
 }
 
 /* ── 卡片（首頁、列表頁共用）────────────────────────────── */
+/* 影片頁接著看（原側欄）的標題在 .thumbnail 外面，放大的是整個項目（div.flex），封面不另外放大 */
 html.vh-home .thumbnail,
 html.vh-list .thumbnail,
-html.vh-video [data-vh-row] .thumbnail {
+html.vh-video [data-vh-row] .thumbnail,
+html.vh-video .order-last[data-vh-section] [data-vh-row] > div.flex {
     position: relative;
     border-radius: 6px;
     transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
@@ -79,7 +81,8 @@ html.vh-video [data-vh-row] .thumbnail {
 @media (hover: hover) {
     html.vh-home:not(.vh-reduce) .thumbnail:hover,
     html.vh-list:not(.vh-reduce) .thumbnail:hover,
-    html.vh-video:not(.vh-reduce) [data-vh-row] .thumbnail:hover {
+    html.vh-video:not(.vh-reduce) [data-vh-row] .thumbnail:not(.order-last .thumbnail):hover,
+    html.vh-video:not(.vh-reduce) .order-last[data-vh-section] [data-vh-row] > div.flex:hover {
         z-index: 6;
         transform: scale(var(--vh-zoom));
         background-color: var(--vh-panel);
@@ -89,6 +92,7 @@ html.vh-video [data-vh-row] .thumbnail {
     html.vh-home:not(.vh-reduce) .thumbnail:hover .my-2,
     html.vh-list:not(.vh-reduce) .thumbnail:hover .my-2,
     html.vh-video:not(.vh-reduce) [data-vh-row] .thumbnail:hover .my-2 { padding: 0 8px 4px; }
+    html.vh-video:not(.vh-reduce) .order-last[data-vh-section] [data-vh-row] > div.flex:hover > div.flex-1 { padding: 8px 8px 4px; }
 }
 
 /* 標題從一行截斷改成兩行；固定兩行高，同一列的卡片才對得齊 */
@@ -731,7 +735,8 @@ html.vh-wide .vh-rv {
         opacity var(--vh-rv-ms, 800ms) ease var(--vh-rv-d, 0ms),
         translate var(--vh-rv-ms, 800ms) cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms);
 }
-html.vh-wide .thumbnail.vh-rv {
+html.vh-wide .thumbnail.vh-rv,
+html.vh-video .order-last[data-vh-section] [data-vh-row] > div.flex.vh-rv {
     transition:
         opacity var(--vh-rv-ms, 800ms) ease var(--vh-rv-d, 0ms),
         translate var(--vh-rv-ms, 800ms) cubic-bezier(.2, .7, .2, 1) var(--vh-rv-d, 0ms),
@@ -743,6 +748,7 @@ html.vh-wide .vh-rv.vh-in { opacity: 1; translate: none; }
 html.vh-reduce.vh-home .thumbnail,
 html.vh-reduce.vh-list .thumbnail,
 html.vh-reduce.vh-video [data-vh-row] .thumbnail,
+html.vh-reduce.vh-video .order-last[data-vh-section] [data-vh-row] > div.flex,
 html.vh-reduce .vh-arrow,
 html.vh-reduce .vh-arrow svg,
 html.vh-reduce .vh-chip,
