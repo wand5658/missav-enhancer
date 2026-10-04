@@ -18,6 +18,9 @@ globalThis.VHS = (() => {
         heroFx: ["parallax", "zoom", "flip"],   // 可再加 push
         heroSpeed: 800,
         heroPreview: true,
+        heroHD: true,               // 高畫質預覽（hd.js）：拿不到就用原本的 preview.mp4
+        heroHDQuality: "auto",      // auto / 480p / 720p / 1080p
+        heroHDPick: "smart",        // smart（看拖曳預覽圖挑）/ even（10%～80% 固定位置，跟站台的預覽一樣）
         heroTint: true,
 
         home: true,
@@ -53,7 +56,7 @@ globalThis.VHS = (() => {
     // 項目 → 所屬的總開關。總開關關掉，底下的項目一律當成關
     const GROUPS = {
         antiPause: ["gestureMs", "fallbackResume"],
-        hero: ["heroHome", "heroList", "heroHeight", "heroSeconds", "heroFx", "heroSpeed", "heroPreview", "heroTint"],
+        hero: ["heroHome", "heroList", "heroHeight", "heroSeconds", "heroFx", "heroSpeed", "heroPreview", "heroHD", "heroHDQuality", "heroHDPick", "heroTint"],
         home: ["homeRows", "homePer", "homeZoom", "homeHideSearch"],
         list: ["listChips", "listPager", "listCols"],
         video: ["videoTheater", "videoGap", "videoHidePromo"],

@@ -22,6 +22,8 @@
     // 這一頁要不要輪播：總開關 ＋ 首頁 / 列表頁各自的開關
     const enabled = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
     const POOL_MAX = 40;
+    const hdOn = () => VHS.on("heroHD") && VHS.get("heroPreview");
+    const HD_WAIT_MS = 2500;        // 高畫質最多等多久，超過就先播 preview.mp4
     const MIN_VISIBLE = 0.5;        // hero 露出不到一半就整個暫停
 
     const pool = [];                // [{id, href, title, tags, cover, coverLo, preview}]
@@ -217,10 +219,31 @@
         s.append(bg, link);
         s._video = video;
         s._preview = item.preview;
+        s._frame = frame;
+        s._mont = null;                     // 高畫質的快剪播放器（hd.js 的 VHD.montage）
+        s._hdState = hdOn() ? "wait" : "none";
+        if (s._hdState === "wait") {
+            // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4
+            const done = (e, why) => {
+                if (s._hdState !== "wait") return;
+                console.debug("[hd] slide", item.id, e ? "hd" : `fallback(${why || "none"})`);
+                s._hdState = e ? "ready" : "none";
+                // 串流載不到（網址失效、網路）就退回 preview.mp4
+                if (e) s._mont = VHD.montage(frame, e, VHD.quality(frame.getBoundingClientRect().width), () => {
+                    s._mont = null;
+                    s._hdState = "none";
+                    sync();
+                });
+                sync();
+            };
+            VHD.resolve(item, VHS.get("heroHDPick")).then(done);
+            setTimeout(() => done(null, "timeout"), HD_WAIT_MS);
+        }
         return s;
     }
 
     function stopVideo(s) {
+        s._mont?.stop();
         const v = s._video;
         if (!v) return;
         v.pause();
@@ -262,6 +285,10 @@
                 });
 
                 ui.hero.hidden = false;
+                // 後面兩部先準備好（fetch 影片頁、挑起點），輪到時就直接是高畫質；
+                // 結果存進快取，沒輪到的下次來也用得到
+                if (hdOn()) for (let k = 1; k <= Math.min(2, pool.length - 1); k++)
+                    VHD.resolve(pool[(at + k) % pool.length], VHS.get("heroHDPick"));
                 // 頁面背景（browse.css 的全頁染色）跟著目前這張封面換色
                 if (/^https:\/\/[\w.\/-]+$/.test(cover))
                     document.documentElement.style.setProperty("--vh-cover", `url("${cover}")`);
@@ -293,6 +320,7 @@
         host.hidden = !enabled();
         host.toggleAttribute("data-short", VHS.get("heroHeight") === "short");
         host.toggleAttribute("data-reduce", VHS.reduced());
+        host.toggleAttribute("data-hd", hdOn());
         ui.hero.style.setProperty("--slide", `${slideMs()}ms`);
         ui.hero.style.setProperty("--swap", `${swapMs()}ms`);
         sync();
@@ -308,13 +336,15 @@
         const s = current();
         const v = s?._video;
         if (!v) return;
+        const p = s._mont || v;             // 高畫質快剪或原本的 preview.mp4，play / pause 介面一樣
         // 預覽影片設定關掉時連載都不載，只看封面
         if (document.hidden || off || VHS.reduced() || !enabled() || !VHS.get("heroPreview")) {
-            v.pause();
+            p.pause();
             return;
         }
-        if (!v.getAttribute("src")) v.src = s._preview;
-        v.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
+        if (s._hdState === "wait") return;      // 高畫質還在準備，先停在封面
+        if (!s._mont && !v.getAttribute("src")) v.src = s._preview;
+        p.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
     }
 
     // ── 樣式（Shadow DOM 內，跟站台的 Tailwind 互不影響）────────
@@ -448,6 +478,9 @@
     background: #000;
     box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
 }
+/* 高畫質預覽開著時畫框放大：播的是 480p / 720p 的正片，不再受封面 800px 的限制
+ * （封面只在影片開播前那一下看得到） */
+:host([data-hd]) .frame { width: min(1280px, 66%, calc((var(--h) - 76px) * 16 / 9)); }
 .frame img, .frame video {
     position: absolute;
     inset: 0;
@@ -462,6 +495,9 @@
 }
 .frame video { opacity: 0; transition: opacity .8s ease; }
 .frame[data-live="1"] video { opacity: 1; }
+/* 高畫質快剪（hd.js 的 montage）：兩個 video 輪流，只顯示正在播的那個（data-on），硬切不淡入淡出 */
+.frame video.mv { opacity: 0; transition: none; }
+.frame[data-live="1"] video.mv[data-on] { opacity: 1; }
 .frame::after {
     content: '';
     position: absolute;

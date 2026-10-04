@@ -428,8 +428,10 @@
     // 放大（預設 1.3 倍，設定 homeZoom，CSS 的 --vh-zoom 由 applySettings 寫）時，
     // 靠邊的卡片從中心放大會被橫列（或視窗）切掉一截。
     // 進入卡片時量一次：左邊不夠就從左緣放大、右邊不夠就從右緣。CSS 有 0.3s 延遲，量的時候還沒放大
+    // 影片頁接著看放大的是整個項目（標題在 .thumbnail 外面），所以先找項目
     root.addEventListener("pointerover", e => {
-        const card = e.target.closest?.(".thumbnail");
+        const card = e.target.closest?.(".order-last[data-vh-section] [data-vh-row] > div.flex")
+            || e.target.closest?.(".thumbnail");
         if (!card || card.contains(e.relatedTarget)) return;
         const r = card.getBoundingClientRect();
         const row = card.closest("[data-vh-row]");
