@@ -22,6 +22,8 @@
     // 這一頁要不要輪播：總開關 ＋ 首頁 / 列表頁各自的開關
     const enabled = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
     const POOL_MAX = 40;
+    const hdOn = () => VHS.on("heroHD") && VHS.get("heroPreview");
+    const HD_WAIT_MS = 2500;        // 高畫質最多等多久，超過就先播 preview.mp4
     const MIN_VISIBLE = 0.5;        // hero 露出不到一半就整個暫停
 
     const pool = [];                // [{id, href, title, tags, cover, coverLo, preview}]
@@ -196,8 +198,25 @@
         video.loop = true;
         video.playsInline = true;
         video.preload = "auto";
-        // 真的開始播才蓋上去，載入中那段看到的是封面的推近，不是黑畫面
-        video.addEventListener("playing", () => { frame.dataset.live = "1"; });
+        // 真的開始播才蓋上去，載入中那段看到的是封面的推近，不是黑畫面。
+        // 高畫質（hd.js）要先跳到挑好的起點，跳過去之前播的第 0 秒不算
+        const atStart = () => !s._hd || video.currentTime >= s._hd.s - 1;
+        video.addEventListener("playing", () => { if (atStart()) frame.dataset.live = "1"; });
+        video.addEventListener("timeupdate", () => {
+            if (!s._hd) return;
+            if (atStart() && !video.paused) frame.dataset.live = "1";
+            if (video.currentTime >= s._hd.s + VHD.CLIP_S) video.currentTime = s._hd.s;    // 只循環那一段
+        });
+        video.addEventListener("loadedmetadata", () => { if (s._hd) video.currentTime = s._hd.s; });
+        // 串流載不到（網址失效、網路）就退回 preview.mp4
+        video.addEventListener("error", () => {
+            if (!s._hd) return;
+            s._hd = null;
+            s._hdState = "none";
+            video.loop = true;
+            video.removeAttribute("src");
+            sync();
+        });
         frame.append(img, video);
 
         const text = document.createElement("div");
@@ -217,6 +236,22 @@
         s.append(bg, link);
         s._video = video;
         s._preview = item.preview;
+        s._frame = frame;
+        s._hd = null;
+        s._hdState = hdOn() ? "wait" : "none";
+        if (s._hdState === "wait") {
+            // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4
+            const done = (e, why) => {
+                if (s._hdState !== "wait") return;
+                console.debug("[hd] slide", item.id, e ? "hd" : `fallback(${why || "none"})`);
+                s._hd = e;
+                s._hdState = e ? "ready" : "none";
+                if (e) video.loop = false;
+                sync();
+            };
+            VHD.resolve(item, VHS.get("heroHDPick")).then(done);
+            setTimeout(() => done(null, "timeout"), HD_WAIT_MS);
+        }
         return s;
     }
 
@@ -262,6 +297,10 @@
                 });
 
                 ui.hero.hidden = false;
+                // 後面兩部先準備好（fetch 影片頁、挑起點），輪到時就直接是高畫質；
+                // 結果存進快取，沒輪到的下次來也用得到
+                if (hdOn()) for (let k = 1; k <= Math.min(2, pool.length - 1); k++)
+                    VHD.resolve(pool[(at + k) % pool.length], VHS.get("heroHDPick"));
                 // 頁面背景（browse.css 的全頁染色）跟著目前這張封面換色
                 if (/^https:\/\/[\w.\/-]+$/.test(cover))
                     document.documentElement.style.setProperty("--vh-cover", `url("${cover}")`);
@@ -313,7 +352,9 @@
             v.pause();
             return;
         }
-        if (!v.getAttribute("src")) v.src = s._preview;
+        if (s._hdState === "wait") return;      // 高畫質還在準備，先停在封面
+        if (!v.getAttribute("src"))
+            v.src = s._hd ? VHD.src(s._hd, VHD.quality(s._frame.getBoundingClientRect().width)) : s._preview;
         v.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
     }
 

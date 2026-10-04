@@ -45,6 +45,7 @@
       "js": [
         "settings.js",
         "pages.js",
+        "hd.js",
         "hero.js",
         "browse.js"
       ],

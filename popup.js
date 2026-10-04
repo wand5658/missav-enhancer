@@ -55,6 +55,9 @@
               options: [o("parallax", "視差", "Parallax"), o("zoom", "穿越", "Zoom"), o("flip", "3D 翻卡", "3D flip"), o("push", "推進", "Push")] },
             { type: "range", key: "heroSpeed", label: o(0, "切換速度", "Transition speed"), min: 300, max: 1500, step: 50, unit: "ms" },
             { type: "sw", key: "heroPreview", label: o(0, "播放預覽影片", "Play preview clips"), hint: o(0, "關掉只顯示封面，省流量", "Off: covers only, saves data") },
+            { type: "sw", key: "heroHD", label: o(0, "高畫質預覽", "HD previews"), hint: o(0, "從正片挑片段播放；拿不到時用原本的預覽", "Plays clips picked from the full video; falls back to the normal preview") },
+            { type: "seg", key: "heroHDQuality", label: o(0, "畫質", "Quality"), options: [o("auto", "自動", "Auto"), o("480p", "480p", "480p"), o("720p", "720p", "720p"), o("1080p", "1080p", "1080p")] },
+            { type: "seg", key: "heroHDPick", label: o(0, "片段", "Clip"), options: [o("smart", "自動挑選", "Auto-pick"), o("middle", "片長一半", "Midpoint")] },
             { type: "sw", key: "heroTint", label: o(0, "背景跟著封面換色", "Tint page from the cover") },
         ] },
         { id: "home", ico: "▤", title: o(0, "首頁", "Home page"), items: [
