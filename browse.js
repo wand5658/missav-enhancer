@@ -50,14 +50,18 @@
     const ROWS = restyle && (kind === "video" || VHS.on("homeRows"));
     const CHIPS = kind === "list" && restyle && VHS.on("listChips");
     const PAGER = kind === "list" && restyle && VHS.on("listPager");
-    // 女優頭像網格（收藏的女優）：沒有影片卡，也就不會有 hero
+    // 沒有影片卡（也就不會有 hero）的格子頁，每一格是一個進場單位：
+    // 女優頭像網格（收藏的女優、女優一覽、女優排行）、片單列表（/playlists）、類型／發行商一覽
     const PEOPLE = kind === "list" && Boolean(root.querySelector(":scope > div > ul.grid img"));
-    // 片單列表（/playlists）：每個片單是一張沒有封面的卡片，也沒有 hero
     const LISTS = kind === "list" && !root.querySelector(".thumbnail") &&
         Boolean(root.querySelector(':scope > div[x-data] ul[role="list"] > li > a[href*="/playlists/"]'));
-    // 一載入就整頁一起演的格子（上面沒有輪播，不用等捲到）
-    const SHEET = PEOPLE ? ":scope > div > ul.grid > li" :
-        LISTS ? ':scope > div[x-data] ul[role="list"] > li' : null;
+    const TAGS = kind === "list" && Boolean(root.querySelector(":scope > div > div.grid > div > p > a"));
+    const TILES = PEOPLE ? ":scope > div > ul.grid > li" :
+        LISTS ? ':scope > div[x-data] ul[role="list"] > li' :
+        TAGS ? ":scope > div > div.grid > div" : null;
+    // 自己的收藏、片單格子少，一載入就整頁一個一個演；女優一覽（24）、排行（100）、類型（36）照捲動演，
+    // 不然最下面那格要等十幾秒
+    const SHEET = TILES && /^\/(saved|playlists)(\/|$)/.test(location.pathname) ? TILES : null;
 
     const reduced = () => VHS.reduced();
     const heroOn = () => VH.hero() && VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
@@ -200,7 +204,8 @@
 
     // ── 列表頁：工具列 ────────────────────────────────────────
     function initToolbar() {
-        const old = root.querySelector(":scope > div.flex.justify-between.mb-6");
+        // 女優一覽的排序下拉在靠右的 div.flex.justify-end.mb-3 裡
+        const old = root.querySelector(":scope > div.flex.justify-between.mb-6, :scope > div.flex.justify-end.mb-3");
         if (!old || old.classList.contains("vh-gone")) return;
 
         // 只轉「名稱: 值」的下拉。其他的（收藏女優頁的「我的帳戶」，選項是登出、刪除帳號，
@@ -485,6 +490,8 @@
             card.dataset.vhTidy = "1";
             card.querySelectorAll("a[href]").forEach(a => { if (a !== title) a.tabIndex = -1; });
         });
+        // 類型、發行商的卡片：名稱和片數是同一個連結，只留名稱
+        if (TAGS) root.querySelectorAll(":scope > div > div.grid > div > p > a").forEach(a => { a.tabIndex = -1; });
     }
 
     // ── 卡片：捲動進場 ────────────────────────────────────────
@@ -527,7 +534,7 @@
     // 首頁、列表頁的 hero 是之後才插進來的。插進來之前卡片就在第一屏，一觀察就演完了，
     // 等 hero 把它們推到下面，使用者捲下去看到的是已經出現好的卡片。
     // 所以先只標 .vh-rv（藏起來），等 hero 就位（或等不到它）才開始觀察
-    let revealReady = kind === "video" || PEOPLE || !heroOn();
+    let revealReady = kind === "video" || Boolean(TILES) || !heroOn();
     const pending = [];
     if (!revealReady) setTimeout(() => startReveal(), 3000);   // 保險：沒有可輪播的卡片時 hero 不會出現
 
@@ -580,14 +587,16 @@
             if (revealReady) revealIO.observe(unit);
             else pending.push(unit);
         });
-        // 女優頭像、片單列表：每一格是 li（頁面上沒有 .thumbnail）。上面沒有輪播，不用等捲到才演，
-        // 整頁一起進同一批，依畫面順序錯開
-        if (SHEET) {
-            const lis = [...root.querySelectorAll(SHEET)].filter(li => !li.dataset.vhRv);
-            lis.forEach(li => { li.dataset.vhRv = "1"; });
-            hideForReveal(lis);
-            if (lis.length && !revealBatch.length) requestAnimationFrame(revealFlush);
-            revealBatch.push(...lis);
+        // 沒有 .thumbnail 的格子（TILES）。上面沒有輪播：SHEET 不用等捲到才演，整頁一起進同一批，
+        // 依畫面順序錯開；其他的直接觀察
+        if (TILES) {
+            const tiles = [...root.querySelectorAll(TILES)].filter(t => !t.dataset.vhRv);
+            tiles.forEach(t => { t.dataset.vhRv = "1"; });
+            hideForReveal(tiles);
+            if (SHEET) {
+                if (tiles.length && !revealBatch.length) requestAnimationFrame(revealFlush);
+                revealBatch.push(...tiles);
+            } else tiles.forEach(t => revealIO.observe(t));
         }
         // hero 的 host 一插進來時裡面還是 hidden（第一張封面載完才顯示），高度幾乎是 0；
         // 那個切換發生在 Shadow DOM 裡，上面的 MutationObserver 看不到，所以盯 host 的尺寸

@@ -239,21 +239,21 @@ html.vh-list .vh-gone { display: none; }
 
 /* 每列欄數（設定 listCols）：網站原本 2 / 3 / 4 欄；選「網站預設」就沒有 vh-cols-* class，不覆寫。
  * 窄螢幕一律 1 / 2 欄，寬螢幕才到選的欄數 */
-html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid {
+html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) {
     gap: 24px;
     grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 640px) {
-    html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
-    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1280px) {
-    html.vh-list.vh-cols-3 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-3 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1440px) {
-    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 html.vh-list .content-without-search > h1,
@@ -524,6 +524,106 @@ html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid 
     html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li div.rounded-full { width: 96px; height: 96px; }
 }
 
+/* 女優排行：頭像下面的「第 N 名」（bg-yellow-600）改成膠囊；前三名金色，其他淡色 */
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li span.bg-yellow-600 {
+    margin-top: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vh-dim);
+    background: rgba(236, 239, 244, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li:nth-child(-n+3) span.bg-yellow-600 {
+    color: #2e2a1f;
+    background: linear-gradient(135deg, #f6d98b, #d9a94a);
+    box-shadow: 0 4px 14px rgba(217, 169, 74, .35);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li:nth-child(-n+3) div.rounded-full {
+    box-shadow: 0 0 0 3px #e3bd68, 0 12px 30px rgba(0, 0, 0, .45);
+}
+
+/* 女優一覽的篩選（身高、罩杯、年齡、出道年份）：四個 select，跟工具列同一種深色面板。
+ * 只改 background-color，不用 background：箭頭是 Tailwind forms 畫的 background-image */
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid:has(> select) {
+    gap: 12px;
+    margin-bottom: 20px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select {
+    min-height: 42px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--vh-ink);
+    background-color: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .1);
+    cursor: pointer;
+    transition: background-color .15s, border-color .15s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select:hover { background-color: rgba(255, 255, 255, .09); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select:focus {
+    border-color: var(--vh-focus);
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select option { color: var(--vh-ink); background: #2e3440; }
+
+/* ── 類型、發行商一覽：root > div.p-8（bg-nord1 底板）> div.grid > div（名稱 a ＋ p > a 片數）──
+ * 底板拿掉，每一格變成卡片；名稱連結的 ::after 鋪滿整張卡，整張都能點 */
+html.vh-list :is(.content-without-search, .content-with-search) > div:has(> div.grid > div > p > a) {
+    padding: 8px 0 0;
+    border-radius: 0;
+    background: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid:has(> div > p > a) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-height: 76px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):not(.vh-rv) {
+    transition: background-color .2s, border-color .2s, box-shadow .2s, translate .2s ease;   /* 同上，不蓋進場 */
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--vh-ink);
+    transition: color .2s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div > p:has(> a) {
+    font-size: 12px;
+    color: var(--vh-dim);
+}
+@media (hover: hover) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover {
+        background: rgba(255, 255, 255, .09);
+        border-color: rgba(255, 255, 255, .16);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, .4);
+    }
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover { translate: 0 -3px; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover > a { color: var(--vh-focus); }
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a:focus-visible { outline: none; color: var(--vh-focus); }
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):focus-within {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+
 /* 單一女優頁的資料卡：靠左的半透明面板，按鈕跟影片頁的動作鈕同一種膠囊 */
 html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern {
     justify-content: flex-start;
@@ -643,6 +743,9 @@ html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul
     box-shadow: 0 10px 28px rgba(0, 0, 0, .3);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
             backdrop-filter: blur(16px) saturate(1.3);
+}
+/* 進場中（.vh-rv）不設：這條比 .vh-rv 的 transition 具體，會把淡入上浮蓋掉 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):not(.vh-rv) {
     transition: background-color .2s, border-color .2s, box-shadow .2s, translate .2s ease;
 }
 html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] { border-radius: inherit; }
