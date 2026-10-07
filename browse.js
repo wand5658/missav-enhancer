@@ -52,9 +52,15 @@
     const PAGER = kind === "list" && restyle && VHS.on("listPager");
     // 女優頭像網格（收藏的女優）：沒有影片卡，也就不會有 hero
     const PEOPLE = kind === "list" && Boolean(root.querySelector(":scope > div > ul.grid img"));
+    // 片單列表（/playlists）：每個片單是一張沒有封面的卡片，也沒有 hero
+    const LISTS = kind === "list" && !root.querySelector(".thumbnail") &&
+        Boolean(root.querySelector(':scope > div[x-data] ul[role="list"] > li > a[href*="/playlists/"]'));
+    // 一載入就整頁一起演的格子（上面沒有輪播，不用等捲到）
+    const SHEET = PEOPLE ? ":scope > div > ul.grid > li" :
+        LISTS ? ':scope > div[x-data] ul[role="list"] > li' : null;
 
     const reduced = () => VHS.reduced();
-    const heroOn = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
+    const heroOn = () => VH.hero() && VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
 
     // ── 頁首高度 ──────────────────────────────────────────────
     // 頁首是 fixed 的；sticky 工具列要停在它下面，首頁 hero 要往上鑽到它底下
@@ -502,13 +508,13 @@
         revealBatch = [];
         items.sort((a, b) => Math.round(a.r.top - b.r.top) || a.r.left - b.r.left);
         const gap = VHS.get("revealGap");
-        // 一般頁面同一批最多錯開 8 個，之後的同時出現。女優頁整頁一起演，不設上限：
+        // 一般頁面同一批最多錯開 8 個，之後的同時出現。女優頁、片單列表（SHEET）整頁一起演，不設上限：
         // 每個都隔同樣的間隔一個一個浮出，越下面越晚；長度放慢成 1.25 倍（跟著設定走）
-        const ms = VHS.get("revealMs") * (PEOPLE ? 1.25 : 1);
+        const ms = VHS.get("revealMs") * (SHEET ? 1.25 : 1);
         items.forEach(({ el }, i) => {
-            const delay = (PEOPLE ? i : Math.min(i, 8)) * gap;
+            const delay = (SHEET ? i : Math.min(i, 8)) * gap;
             el.style.setProperty("--vh-rv-d", `${delay}ms`);
-            if (PEOPLE) el.style.setProperty("--vh-rv-ms", `${ms}ms`);
+            if (SHEET) el.style.setProperty("--vh-rv-ms", `${ms}ms`);
             el.classList.add("vh-in");
             setTimeout(() => {
                 el.classList.remove("vh-rv", "vh-in");
@@ -563,7 +569,8 @@
             // 沒有排版框的卡片不標：隨機區的預載卡藏在 .hidden 容器裡，「好手氣」會把它的
             // innerHTML 原封不動複製進網格，標過的 vh-rv（透明）跟著過去卻再也不會被觀察到
             if (!card.getClientRects().length) return;
-            const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
+            // 片單裡的影片：一列是 li（縮圖＋評語表單），整列一起演
+            const unit = card.closest('[data-vh-row] > *, div.grid > *, ul[role="list"] > li') || card;
             if (unit.dataset.vhRv) return;
             unit.dataset.vhRv = "1";
             marked.push(unit);
@@ -573,10 +580,10 @@
             if (revealReady) revealIO.observe(unit);
             else pending.push(unit);
         });
-        // 女優頭像：每一格是 li（頁面上沒有 .thumbnail）。上面沒有輪播，不用等捲到才演，
+        // 女優頭像、片單列表：每一格是 li（頁面上沒有 .thumbnail）。上面沒有輪播，不用等捲到才演，
         // 整頁一起進同一批，依畫面順序錯開
-        if (PEOPLE) {
-            const lis = [...root.querySelectorAll(":scope > div > ul.grid > li")].filter(li => !li.dataset.vhRv);
+        if (SHEET) {
+            const lis = [...root.querySelectorAll(SHEET)].filter(li => !li.dataset.vhRv);
             lis.forEach(li => { li.dataset.vhRv = "1"; });
             hideForReveal(lis);
             if (lis.length && !revealBatch.length) requestAnimationFrame(revealFlush);

@@ -574,6 +574,201 @@ html.vh-list :is(.content-without-search, .content-with-search) > div.hero-patte
     outline-offset: 2px;
 }
 
+/* ── 帳戶頁（觀看紀錄、片單、收藏的女優）：「我的帳戶」和右邊的動作鈕 ──
+ * 工具列是 root > div.flex.justify-between.mb-6；一般列表頁的篩選下拉轉成按鈕後只剩這個（見 initToolbar）。
+ * 下拉選單有 x-show，只改裡面那層的配色，不碰它的 display */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 { gap: 12px; }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a,
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary {
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    transition: background-color .15s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a {
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a:hover { background: rgba(236, 239, 244, .16); }
+/* 建立片單、修改片單：跟啟用中的按鈕同一種粉色膠囊 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vh-primary) 45%, transparent);
+    box-shadow: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary:hover {
+    background: color-mix(in srgb, var(--vh-primary) 26%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+/* 下拉選單：網站是淺色底，改成跟頁面一致的深色玻璃 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md {
+    overflow: hidden;
+    border-radius: 12px;
+    color: var(--vh-ink);
+    background: rgba(36, 41, 51, .92);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md :is(p, a) { color: var(--vh-ink); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md p:first-child { color: var(--vh-dim); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md .border-t { border-color: rgba(255, 255, 255, .1); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md a:hover { background: rgba(236, 239, 244, .1); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md a.text-red-600 { color: #ef7d87; }
+
+/* ── 片單列表（/playlists）：一列一個改成卡片網格 ──────────
+ * root > div[x-data] > div.overflow-hidden > ul[role=list] > li > a；都沒有 x-show */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] > div.overflow-hidden:has(> ul > li > a[href*="/playlists/"]) {
+    overflow: visible;          /* 不然 hover 浮起和陰影會被切掉 */
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"]:has(> li > a[href*="/playlists/"]) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]) {
+    margin: 0;                  /* space-y-4 */
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+    transition: background-color .2s, border-color .2s, box-shadow .2s, translate .2s ease;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] { border-radius: inherit; }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div { padding: 18px 20px; }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] p.text-base {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] p.rounded-full {
+    padding: 0 10px;
+    font-weight: 600;
+    color: #ebcb8b;
+    background: rgba(235, 203, 139, .14);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div > div + div {
+    margin-top: 10px;
+    gap: 4px 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--vh-dim);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div > div + div * { font-size: inherit; color: inherit; }
+@media (hover: hover) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):hover {
+        background: rgba(255, 255, 255, .09);
+        border-color: rgba(255, 255, 255, .16);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, .45);
+    }
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):hover { translate: 0 -3px; }
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"]:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+/* 沒有片單 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > div.py-8 h3 {
+    font-size: 15px;
+    color: var(--vh-dim);
+}
+
+/* ── 片單裡的影片（/playlists/<key>）：每列是縮圖＋評語表單 ──────
+ * li 有 x-show（刪除後 show = false 收起來），display 歸 Alpine：只改外觀，不改 display，
+ * 橫排靠它原本的 sm:flex */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) {
+    gap: 24px;
+    align-items: flex-start;
+    max-width: 1100px;
+    margin: 0 0 16px;           /* 原本 mx-auto、space-y-8 */
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) > div.w-72 {
+    width: min(360px, 100%);
+    margin: 0;
+}
+@media (max-width: 639px) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) { width: auto; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) > div.w-72 { margin-bottom: 14px; }
+}
+/* 縮圖不放大：這裡是一列一列，放大會蓋到旁邊的表單 */
+html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li .thumbnail:hover {
+    transform: none;
+    box-shadow: none;
+    background: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li .thumbnail > .relative {
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form label {
+    -webkit-line-clamp: 2;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--vh-ink);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--vh-ink);
+    background: rgba(0, 0, 0, .25);
+    border: 1px solid rgba(236, 239, 244, .14);
+    box-shadow: none;
+    resize: vertical;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea::placeholder { color: var(--vh-dim); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea:focus {
+    border-color: var(--vh-focus);
+    --tw-ring-shadow: 0 0 #0000;
+    outline: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button {
+    min-height: 36px;
+    padding: 0 18px;
+    border-radius: 999px;
+    box-shadow: none;
+    transition: background-color .15s, opacity .15s;
+}
+/* 提交：粉色膠囊；送出中網站加 bg-nord3（:class），改成變淡 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary:hover { background: color-mix(in srgb, var(--vh-primary) 26%, transparent); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary.bg-nord3 { opacity: .5; }
+/* 刪除：網站是白底紅字，改成透明底紅字，滑過才出現紅底 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.text-red-700 {
+    color: #ef7d87;
+    background: transparent;
+    border: 1px solid rgba(239, 125, 135, .35);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.text-red-700:hover { background: rgba(239, 125, 135, .14); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+
 /* ── 影片頁 ────────────────────────────────────────────── */
 /* 外層 div.flex[x-data] 改 grid；主欄 display: contents，讓它的子元素直接當 grid 的格子，
  * 側欄和主欄的子元素變成兄弟，才能用 order 穿插排序而不用搬 DOM。這兩層都沒有 x-show。
@@ -625,7 +820,14 @@ html.vh-theater :is(div.content-without-search, div.content-with-search) > div.f
 }
 
 /* 標題與按鈕 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { margin-top: 20px; }
+/* 接著看的橫列下緣多出 --lift（44px）給放大的卡片，那一截會伸進標題區；
+ * 那一區是 position: relative（畫在一般區塊上面），透明的捲動容器會吃掉滑鼠，標題上半段點不到、選不了字。
+ * 標題區疊到它上面（5，跟列標題同一層；放大中的卡片是 6，還是壓得過） */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 {
+    position: relative;
+    z-index: 5;
+    margin-top: 20px;
+}
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 {
     font-size: clamp(20px, 1.8vw, 28px);
     font-weight: 700;
@@ -662,6 +864,50 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a).text-primary:hover {
     background: color-mix(in srgb, var(--vh-primary) 26%, transparent);
 }
+
+/* 分享、片單面板（x-show，只改外觀）：網站的灰底換成跟詳情一樣的半透明面板 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :is(div[x-show*="share"], div[x-show*="playlist"]) {
+    position: relative;
+    z-index: 5;
+    margin-bottom: 20px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+/* 片單：每個片單一個勾選框。網站把勾選框和名稱塞在 h-5 的同一行，名字長就擠在一起 */
+html.vh-video div[x-show*="playlist"] fieldset > div {
+    margin-bottom: 4px;
+}
+html.vh-video div[x-show*="playlist"] fieldset > div > div.h-5 {
+    height: auto;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    transition: background-color .15s;
+}
+html.vh-video div[x-show*="playlist"] fieldset > div > div.h-5:hover { background: rgba(236, 239, 244, .08); }
+html.vh-video div[x-show*="playlist"] fieldset input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    color: var(--vh-primary);
+    background-color: transparent;
+    border-color: rgba(236, 239, 244, .35);
+    cursor: pointer;
+}
+html.vh-video div[x-show*="playlist"] fieldset input[type="checkbox"]:checked { background-color: var(--vh-primary); border-color: transparent; }
+html.vh-video div[x-show*="playlist"] fieldset label { color: var(--vh-ink); font-size: 14px; }
+html.vh-video div[x-show*="playlist"] fieldset hr { border-color: rgba(255, 255, 255, .1); }
+html.vh-video div[x-show*="playlist"] fieldset > a {
+    min-height: 36px;
+    padding: 0 14px 0 10px;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    transition: background-color .15s;
+}
+html.vh-video div[x-show*="playlist"] fieldset > a:hover { background: rgba(236, 239, 244, .08); }
 
 /* 詳情：推廣連結收掉；每列「標籤＋值」用懸掛縮排對齊，值改膠囊。
  * 父層 font-size: 0 是為了藏掉連結之間的純文字逗號，子元素再設回字級。

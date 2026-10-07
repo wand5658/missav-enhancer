@@ -7,6 +7,7 @@
     // 不依賴那些頁面的 video id 格式。
     const kind = VH.kind();
     if (kind !== "home" && kind !== "list") return;     // 影片頁、其他頁都不輪播
+    if (!VH.hero()) return;                             // 片單頁（VH.NO_HERO）
     const CARD_VIDEO = kind === "list" ? ".thumbnail video.preview" : 'video.preview[id^="preview-home-"]';
     const LAYOUT_ROOT = VH.LAYOUT_ROOT;
 
