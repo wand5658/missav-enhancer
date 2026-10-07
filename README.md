@@ -32,6 +32,7 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **Home rows**: the home page's sections become Netflix-style horizontal rows, with scroll-snap, a peek of the next card, arrows, ←/→ between cards, and cards that enlarge on hover.
 - **List toolbar**: the filter and sort dropdowns become always-visible chips (one click instead of two), sticky under the header, with a mini pager.
 - **List pagination**: large prev/next buttons, page numbers centred on the current page, a jump-to-page box, and ←/→ to change pages.
+- **Actresses**: your saved actresses become a grid of large round avatars that lift on hover; an actress's own page gets a cleaner profile card.
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**
 

@@ -2,8 +2,8 @@
 // 所以掛在 globalThis 上就讀得到；這支要排在它們前面載入。
 globalThis.VH = {
     // 列表頁靠網址認：影片頁底下的推薦卡片也是 .thumbnail，不能看到卡片就當列表頁。
-    // dm 後面的數字會換（dm635、dm539…）
-    LIST_PAGES: [/^\/dm\d+(\/|$)/, /^\/saved\/?$/],
+    // dm 後面的數字會換（dm635、dm539…）。/saved/actresses 是收藏的女優（頭像網格，不是影片卡）
+    LIST_PAGES: [/^\/dm\d+(\/|$)/, /^\/saved(\/actresses)?\/?$/],
 
     LAYOUT_ROOT: "div.content-without-search, div.content-with-search",
 

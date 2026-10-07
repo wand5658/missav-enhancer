@@ -21,6 +21,22 @@
     applyAntiPause();
     VHS.subscribe(applyAntiPause);
 
+    // 廣告：browse.css 裡不分頁面種類的那幾條（右下角、直播小窗、頁尾上方 300×250）每一頁都要收，
+    // 不能等下面的頁面判斷——認不得的頁面會在那裡就 return
+    const applyAds = () => html.classList.toggle("vh-hide-ads", VHS.on("hideAds"));
+    applyAds();
+    VHS.subscribe(applyAds);
+
+    // 網站的 primary 色（粉）：啟用中的按鈕（已收藏等）用它。量一個帶 text-primary 的元素；
+    // 量到的跟 body 一樣表示站台沒有這個 class，留 browse.css 的預設值
+    const probe = document.createElement("span");
+    probe.className = "text-primary";
+    probe.hidden = true;
+    document.body.append(probe);
+    const primary = getComputedStyle(probe).color;
+    probe.remove();
+    if (primary && primary !== getComputedStyle(document.body).color) html.style.setProperty("--vh-primary", primary);
+
     const kind = VH.kind();
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
     if (!root) return;
@@ -34,6 +50,8 @@
     const ROWS = restyle && (kind === "video" || VHS.on("homeRows"));
     const CHIPS = kind === "list" && restyle && VHS.on("listChips");
     const PAGER = kind === "list" && restyle && VHS.on("listPager");
+    // 女優頭像網格（收藏的女優）：沒有影片卡，也就不會有 hero
+    const PEOPLE = kind === "list" && Boolean(root.querySelector(":scope > div > ul.grid img"));
 
     const reduced = () => VHS.reduced();
     const heroOn = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
@@ -179,14 +197,18 @@
         const old = root.querySelector(":scope > div.flex.justify-between.mb-6");
         if (!old || old.classList.contains("vh-gone")) return;
 
-        const groups = [...old.querySelectorAll(":scope > .relative")].map(box => {
+        // 只轉「名稱: 值」的下拉。其他的（收藏女優頁的「我的帳戶」，選項是登出、刪除帳號，
+        // 有的靠 @click 而不是 href）留在原本的工具列裡
+        const boxes = [...old.querySelectorAll(":scope > .relative")];
+        const groups = boxes.map(box => {
             const label = box.querySelector(":scope > a > span")?.textContent.trim() || "";
+            if (!/[:：]/.test(label)) return null;
             const [name, current = ""] = label.split(/[:：]/).map(t => t.trim());
             const options = [...box.querySelectorAll(":scope > div a[href]")]
                 .map(a => ({ text: a.textContent.trim(), href: a.href }))
                 .filter(o => o.text);
-            return { name, current, options };
-        }).filter(g => g.name && g.options.length);
+            return { box, name, current, options };
+        }).filter(g => g && g.name && g.options.length);
         if (!groups.length) return;         // 結構跟預期不同就保留原本的下拉
 
         const bar = document.createElement("div");
@@ -217,7 +239,9 @@
         if (page) bar.append(miniPager(page));
 
         old.before(bar);
-        old.classList.add("vh-gone");
+        // 全部轉完才收整條；有留下來的就只收轉過的那幾格（.relative 沒有 x-show）
+        if (groups.length === boxes.length) old.classList.add("vh-gone");
+        else groups.forEach(g => g.box.classList.add("vh-gone"));
     }
 
     // 網站原本的分頁列（不是自己插的 .vh-pager / .vh-mini）
@@ -478,14 +502,18 @@
         revealBatch = [];
         items.sort((a, b) => Math.round(a.r.top - b.r.top) || a.r.left - b.r.left);
         const gap = VHS.get("revealGap");
-        const ms = VHS.get("revealMs");
+        // 一般頁面同一批最多錯開 8 個，之後的同時出現。女優頁整頁一起演，不設上限：
+        // 每個都隔同樣的間隔一個一個浮出，越下面越晚；長度放慢成 1.25 倍（跟著設定走）
+        const ms = VHS.get("revealMs") * (PEOPLE ? 1.25 : 1);
         items.forEach(({ el }, i) => {
-            const delay = Math.min(i, 8) * gap;
+            const delay = (PEOPLE ? i : Math.min(i, 8)) * gap;
             el.style.setProperty("--vh-rv-d", `${delay}ms`);
+            if (PEOPLE) el.style.setProperty("--vh-rv-ms", `${ms}ms`);
             el.classList.add("vh-in");
             setTimeout(() => {
                 el.classList.remove("vh-rv", "vh-in");
                 el.style.removeProperty("--vh-rv-d");
+                el.style.removeProperty("--vh-rv-ms");
             }, delay + ms + 50);
         });
     }
@@ -493,7 +521,7 @@
     // 首頁、列表頁的 hero 是之後才插進來的。插進來之前卡片就在第一屏，一觀察就演完了，
     // 等 hero 把它們推到下面，使用者捲下去看到的是已經出現好的卡片。
     // 所以先只標 .vh-rv（藏起來），等 hero 就位（或等不到它）才開始觀察
-    let revealReady = kind === "video" || !heroOn();
+    let revealReady = kind === "video" || PEOPLE || !heroOn();
     const pending = [];
     if (!revealReady) setTimeout(() => startReveal(), 3000);   // 保險：沒有可輪播的卡片時 hero 不會出現
 
@@ -515,8 +543,22 @@
         });
     }
 
+    // 標成 .vh-rv（透明）時先關掉 transition：元素可能已經畫在畫面上，帶著 transition 會從可見慢慢淡成透明，
+    // 緊接著加上 .vh-in 又轉回可見，看起來就像沒演。整批一起標、只強制算一次樣式
+    function hideForReveal(els) {
+        if (!els.length) return;
+        const prev = els.map(el => el.style.transition);
+        for (const el of els) {
+            el.style.transition = "none";
+            el.classList.add("vh-rv");
+        }
+        void root.offsetWidth;          // 讓透明狀態先生效，之後的 .vh-in 才有起點
+        els.forEach((el, i) => { el.style.transition = prev[i]; });
+    }
+
     function initReveal() {
         if (!revealOn()) return;
+        const marked = [];
         root.querySelectorAll(".thumbnail").forEach(card => {
             // 沒有排版框的卡片不標：隨機區的預載卡藏在 .hidden 容器裡，「好手氣」會把它的
             // innerHTML 原封不動複製進網格，標過的 vh-rv（透明）跟著過去卻再也不會被觀察到
@@ -524,10 +566,22 @@
             const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
             if (unit.dataset.vhRv) return;
             unit.dataset.vhRv = "1";
-            unit.classList.add("vh-rv");
+            marked.push(unit);
+        });
+        hideForReveal(marked);
+        marked.forEach(unit => {
             if (revealReady) revealIO.observe(unit);
             else pending.push(unit);
         });
+        // 女優頭像：每一格是 li（頁面上沒有 .thumbnail）。上面沒有輪播，不用等捲到才演，
+        // 整頁一起進同一批，依畫面順序錯開
+        if (PEOPLE) {
+            const lis = [...root.querySelectorAll(":scope > div > ul.grid > li")].filter(li => !li.dataset.vhRv);
+            lis.forEach(li => { li.dataset.vhRv = "1"; });
+            hideForReveal(lis);
+            if (lis.length && !revealBatch.length) requestAnimationFrame(revealFlush);
+            revealBatch.push(...lis);
+        }
         // hero 的 host 一插進來時裡面還是 hidden（第一張封面載完才顯示），高度幾乎是 0；
         // 那個切換發生在 Shadow DOM 裡，上面的 MutationObserver 看不到，所以盯 host 的尺寸
         const host = root.querySelector(':scope > [data-video-helper="hero"]');
