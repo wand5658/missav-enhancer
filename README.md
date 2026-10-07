@@ -34,6 +34,8 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **List pagination**: large prev/next buttons, page numbers centred on the current page, a jump-to-page box, and ←/→ to change pages.
 - **Actresses**: your saved actresses become a grid of large round avatars that lift on hover; an actress's own page gets a cleaner profile card.
 - **Actress, genre and maker indexes**: the actress list and ranking use the same avatar grid (the top three ranks in gold), with the sort as chips and tidier filters; genres and makers become a grid of cards.
+- **Search**: search results get the list-page treatment, and the search bar becomes a single rounded bar.
+- **Login**: the login, sign-up and password dialogs are restyled, and pages that need an account show a clear sign-in card.
 - **History and playlists**: the watch history gets the carousel, wide grid and pagination of the other lists; your playlists become a grid of cards, and a playlist's videos become panels with a larger thumbnail and a tidier comment box. On a video page, the playlist panel is restyled to match.
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**

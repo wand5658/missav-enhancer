@@ -271,7 +271,6 @@ html.vh-list .vh-toolbar {
     top: var(--vh-header, 0px);
     z-index: 20;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 10px 28px;
     margin: 0 0 24px;
@@ -280,6 +279,15 @@ html.vh-list .vh-toolbar {
     background: rgba(36, 41, 51, .85);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+}
+/* 各組按鈕：佔掉翻頁器以外的寬度，放不下就在這塊裡換行 */
+html.vh-list .vh-groups {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
 }
 html.vh-list .vh-group {
     display: flex;
@@ -322,6 +330,7 @@ html.vh-list .vh-chip:focus-visible {
 }
 /* 工具列右側的翻頁器：‹ 第 [N] / M 頁 › */
 html.vh-list .vh-mini {
+    flex: none;
     margin-left: auto;
     display: flex;
     align-items: center;
@@ -368,6 +377,8 @@ html.vh-list :is(.vh-mini-box, .vh-jump) input:focus {
 
 /* 窄螢幕：每組一行，選項橫向捲動，不要把工具列撐成半個螢幕高 */
 @media (max-width: 767px) {
+    html.vh-list .vh-toolbar { flex-wrap: wrap; }
+    html.vh-list .vh-groups { flex-basis: 100%; }
     html.vh-list .vh-group { width: 100%; }
     html.vh-list .vh-chips {
         flex-wrap: nowrap;
@@ -871,6 +882,262 @@ html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul
     outline-offset: 2px;
     --tw-ring-shadow: 0 0 #0000;
 }
+
+/* ── 需要登入的頁面（沒登入時的片單、收藏、觀看紀錄）────────
+ * root > div[x-data] > h1 + div.text-center > a（「登入」，@click 開登入視窗）；載入時網站自己就會跳出登入視窗。
+ * 改成置中的玻璃卡片，上面一個鎖頭。沒有 x-show */
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) {
+    max-width: 420px;
+    margin: max(6vh, 24px) auto;
+    padding: 36px 32px 32px;
+    text-align: center;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary)::before {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eceff4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='9' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") center / 26px no-repeat,
+        color-mix(in srgb, var(--vh-primary) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > h1 {
+    margin-bottom: 8px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > h1::after {
+    content: "登入後才能使用";
+    display: block;
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--vh-dim);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > div.text-center { margin-top: 24px; }
+
+/* 主要按鈕：需要登入頁的「登入」、登入視窗的送出鈕（網站的 .button-primary）。實心粉色膠囊 */
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary,
+html.vh-wide div[x-show="showModal.login"] button.button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--vh-primary);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--vh-primary) 35%, transparent);
+    transition: filter .15s, box-shadow .15s, scale .15s;
+}
+html.vh-wide div[x-show="showModal.login"] button.button-primary { width: 100%; }
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:hover,
+html.vh-wide div[x-show="showModal.login"] button.button-primary:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--vh-primary) 50%, transparent);
+}
+html.vh-wide:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:active,
+html.vh-wide:not(.vh-reduce) div[x-show="showModal.login"] button.button-primary:active { scale: .97; }
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:focus-visible,
+html.vh-wide div[x-show="showModal.login"] button.button-primary:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 3px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-wide div[x-show="showModal.login"] button.button-primary:disabled { opacity: .6; }
+
+/* ── 頁首的搜尋列（點放大鏡打開，template x-if 產生，在 layout root 外面）──────
+ * form > div.sm:container > div.flex > div.flex.rounded-md（input[x-ref=search] ＋ 搜尋鈕）；
+ * 下面是搜尋紀錄（x-show，只改配色）。輸入框和按鈕原本是一左一右的方框，改成一整條膠囊，按鈕收在右端 */
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) {
+    align-items: center;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(236, 239, 244, .16);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+    transition: border-color .15s, background-color .15s;
+}
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]):focus-within {
+    border-color: var(--vh-focus);
+    background: rgba(255, 255, 255, .1);
+}
+html.vh-wide input[x-ref="search"] {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 15px;
+    color: var(--vh-ink);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-wide input[x-ref="search"]::placeholder { color: var(--vh-dim); }
+html.vh-wide input[x-ref="search"]:focus { background: transparent; }
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button {
+    height: 40px;
+    margin: 0;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    font-weight: 600;
+    color: #242933;
+    background: var(--vh-focus);
+    transition: filter .15s;
+}
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button:hover { filter: brightness(1.1); }
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 3px;
+}
+/* 搜尋紀錄：黃字改成焦點藍，前面加一個「最近搜尋」 */
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 {
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--vh-dim);
+}
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1::before { content: "最近搜尋："; }
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 a.text-nord13 { color: var(--vh-focus); }
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 a.text-nord13:hover { text-decoration: underline; }
+
+/* ── 登入視窗（每一頁都有，在 layout root 外面）───────────
+ * div[x-show="showModal.login"] 底下：遮罩、面板、四個 form（登入／註冊／忘記密碼／更改密碼，各自 x-show）、
+ * 錯誤和成功訊息（x-show）、欄位群組 .text-group（忘記密碼那個有 x-show）。
+ * 這些 x-show 的元素一律只改外觀，不碰 display —— 這個視窗就是當初 content.js 跟 Alpine 搶 display 時壞掉的那個 */
+html.vh-wide div[x-show="showModal.login"] > div > div.fixed[aria-hidden] {
+    background: rgba(8, 9, 14, .6);
+    -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+}
+html.vh-wide div[x-show="showModal.login"] > div > div.inline-block {
+    padding: 32px 28px 28px;
+    border-radius: 20px;
+    color: var(--vh-ink);
+    background: rgba(46, 52, 64, .82);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            backdrop-filter: blur(24px) saturate(1.4);
+}
+@media (min-width: 640px) {
+    html.vh-wide div[x-show="showModal.login"] > div > div.inline-block { max-width: 400px; }
+}
+html.vh-wide div[x-show="showModal.login"] form h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-wide div[x-show="showModal.login"] form h2 + p {
+    margin-top: 6px;
+    color: var(--vh-dim);
+}
+/* 文字連結（註冊一個新帳戶、忘記密碼?）：網站是黃色，改成焦點藍 */
+html.vh-wide div[x-show="showModal.login"] form a.text-nord13 {
+    color: var(--vh-focus);
+    text-decoration: none;
+}
+html.vh-wide div[x-show="showModal.login"] form a.text-nord13:hover { color: #a3d4e0; text-decoration: underline; }
+
+/* 欄位：每格是 div（label ＋ input），一組上下相連。改成一格一格分開的深色圓角欄位，標籤在上 */
+/* 網站的 .text-group 本身是白底外框：欄位的半透明深色疊在白底上會變成灰色，外框要整個拿掉 */
+html.vh-wide div[x-show="showModal.login"] .text-group {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+/* 間距用 margin，不把 .text-group 改成 grid：忘記密碼那組有 x-show，它的 display 歸 Alpine */
+html.vh-wide div[x-show="showModal.login"] .text-group > div + div { margin-top: 10px; }
+html.vh-wide div[x-show="showModal.login"] .text-group > div {
+    position: relative;
+    padding: 8px 14px 6px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, .22);
+    border: 1px solid rgba(236, 239, 244, .12);
+    box-shadow: none;
+    transition: border-color .15s, background-color .15s;
+}
+html.vh-wide div[x-show="showModal.login"] .text-group > div:focus-within {
+    border-color: var(--vh-focus);
+    background: rgba(0, 0, 0, .3);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--vh-dim);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group input {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 2px 0 4px;
+    font-size: 15px;
+    color: var(--vh-ink);
+    background: transparent;
+    border: 0;
+    outline: none;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+}
+/* 自動填入的淡黃底蓋掉 */
+html.vh-wide div[x-show="showModal.login"] .text-group input:-webkit-autofill {
+    -webkit-text-fill-color: var(--vh-ink);
+    -webkit-box-shadow: 0 0 0 40px #262b36 inset;
+    caret-color: var(--vh-ink);
+}
+/* 欄位有錯：網站在 div / label / input 加 bg-red-100、text-red-800（:class），改成深色底的紅框 */
+html.vh-wide div[x-show="showModal.login"] .text-group > div.bg-red-100 {
+    background: rgba(191, 97, 106, .14);
+    border-color: rgba(239, 125, 135, .6);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group label.text-red-800 { color: #ef7d87; }
+html.vh-wide div[x-show="showModal.login"] .text-group input.bg-red-100 { background: transparent; }
+
+/* 錯誤、成功訊息（x-show，只改配色） */
+html.vh-wide div[x-show="showModal.login"] div.bg-red-50 {
+    border-radius: 12px;
+    color: #f2a5ad;
+    background: rgba(191, 97, 106, .16);
+    border: 1px solid rgba(239, 125, 135, .35);
+}
+html.vh-wide div[x-show="showModal.login"] div.bg-emerald-50 {
+    border-radius: 12px;
+    background: rgba(163, 190, 140, .14);
+    border: 1px solid rgba(163, 190, 140, .4);
+}
+html.vh-wide div[x-show="showModal.login"] div.bg-emerald-50 :is(p, svg) { color: #b9d6a0; }
+
+/* 記住我 */
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    color: var(--vh-primary);
+    background-color: transparent;
+    border-color: rgba(236, 239, 244, .35);
+    cursor: pointer;
+}
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"]:checked { background-color: var(--vh-primary); border-color: transparent; }
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"] + * label,
+html.vh-wide div[x-show="showModal.login"] label[for="login_remember"] { color: var(--vh-ink); cursor: pointer; }
 
 /* ── 影片頁 ────────────────────────────────────────────── */
 /* 外層 div.flex[x-data] 改 grid；主欄 display: contents，讓它的子元素直接當 grid 的格子，

@@ -224,6 +224,10 @@
 
         const bar = document.createElement("div");
         bar.className = "vh-toolbar";
+        // 各組按鈕包在一起：放不下時在左邊這塊裡換行，右邊的翻頁器不會被擠到下一行
+        const set = document.createElement("div");
+        set.className = "vh-groups";
+        bar.append(set);
         for (const g of groups) {
             const group = document.createElement("div");
             group.className = "vh-group";
@@ -243,7 +247,7 @@
                 chips.append(a);
             }
             group.append(name, chips);
-            bar.append(group);
+            set.append(group);
         }
 
         const page = PAGER ? pageInfo() : null;

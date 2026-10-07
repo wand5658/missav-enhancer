@@ -5,11 +5,12 @@ globalThis.VH = {
     // dm 後面的數字會換（dm635、dm539…）。/saved/actresses 是收藏的女優（頭像網格，不是影片卡）；
     // /playlists 是自己的片單列表，/playlists/<key> 是片單裡的影片（create、<key>/edit 是表單，不算）。
     // /actresses、/actresses/ranking 是女優一覽和排行（頭像網格），/genres、/makers 是類型、發行商一覽；
-    // 不帶 dm 的 /actresses/<名字>、/genres/<名稱> 跟帶 dm 的同一種頁面
+    // 不帶 dm 的 /actresses/<名字>、/genres/<名稱> 跟帶 dm 的同一種頁面；/search/<關鍵字> 是搜尋結果（一般影片列表）
     LIST_PAGES: [
         /^\/dm\d+(\/|$)/,
         /^\/saved(\/actresses)?\/?$/,
         /^\/history\/?$/,
+        /^\/search\/[^/]+\/?$/,
         /^\/(actresses|genres|makers)(\/[^/]+)?\/?$/,
         /^\/playlists(\/(?!create\/?$)[^/]+)?\/?$/,
     ],
