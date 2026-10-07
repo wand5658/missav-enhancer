@@ -8,6 +8,25 @@
  * 不寫被 x-show 控制的元素的 display：Alpine 靠 inline display 開關它們，
  * 這裡一蓋就跟它搶同一個屬性（CLAUDE.md 的登入 modal 事件）。 */
 
+/* 防閃：這份 CSS 一開始就注入，但規則都掛在 browse.js 加的 class 底下，那要等 document_end 讀完設定。
+ * 網站的 HTML 邊解析邊畫，中間會先露出原本的樣式一下（類型頁最明顯：底板、格子整個換掉）。
+ * 所以 browse.js 標上 vh-ready 前先把 layout root 藏起來（只動 opacity，頁首照常顯示），之後淡入。
+ * 腳本出錯、或沒跑到標 vh-ready 的地方，1.5 秒後自己顯示，不會整頁空白 */
+html:not(.vh-ready) :is(div.content-without-search, div.content-with-search, div.is-home),
+html:not(.vh-ready) div[x-show="showModal.login"] > div {
+    opacity: 0;
+    animation: vh-unveil 0s 1.5s forwards;
+}
+/* 登入視窗：需要登入的頁面一載入 Alpine 就自己打開，可能早於 browse.js，所以上面一起藏（裡面那層，不是 x-show 那層）。
+ * 打開後要等封面牆時（browse.js 加 vh-art-wait，最多 1.2 秒）只藏面板、遮罩照常，好了直接以雙欄出現，不會先單欄再跳 */
+html.vh-wide div[x-show="showModal.login"] > div > div.inline-block.vh-art-wait { opacity: 0; }
+html.vh-wide:not(.vh-reduce) div[x-show="showModal.login"] > div > div.inline-block { transition: opacity .2s ease-out; }
+@keyframes vh-unveil { to { opacity: 1; } }
+html.vh-ready:not(.vh-reduce) :is(div.content-without-search, div.content-with-search, div.is-home) {
+    animation: vh-fade-in .18s ease-out;
+}
+@keyframes vh-fade-in { from { opacity: 0; } }
+
 html.vh-wide {
     --vh-gutter: clamp(16px, 4vw, 60px);
     --vh-zoom: 1.3;             /* hover 放大倍率；browse.js 的 ZOOM 要一起改 */
@@ -16,6 +35,7 @@ html.vh-wide {
     --vh-focus: #88c0d0;
     --vh-panel: #3b4252;
     --vh-sub: #bf616a;
+    --vh-primary: #fe628e;      /* 網站的 primary（粉色）；browse.js 從站台 CSS 量到就覆寫 */
 }
 /* 全站不再置中：layout root 拿掉 sm:container 的 max-width，左右只留 --vh-gutter。
  * 首頁 root 本身沒有 sm:container，留白放在各區塊上（下一條），這裡排除以免變兩倍 */
@@ -238,21 +258,21 @@ html.vh-list .vh-gone { display: none; }
 
 /* 每列欄數（設定 listCols）：網站原本 2 / 3 / 4 欄；選「網站預設」就沒有 vh-cols-* class，不覆寫。
  * 窄螢幕一律 1 / 2 欄，寬螢幕才到選的欄數 */
-html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid {
+html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) {
     gap: 24px;
     grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 640px) {
-    html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    html.vh-list:is(.vh-cols-2, .vh-cols-3, .vh-cols-4) :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
-    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1280px) {
-    html.vh-list.vh-cols-3 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-3 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1440px) {
-    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    html.vh-list.vh-cols-4 :is(.content-without-search, .content-with-search) > div.grid:not(:has(> select)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 html.vh-list .content-without-search > h1,
@@ -270,7 +290,6 @@ html.vh-list .vh-toolbar {
     top: var(--vh-header, 0px);
     z-index: 20;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 10px 28px;
     margin: 0 0 24px;
@@ -279,6 +298,15 @@ html.vh-list .vh-toolbar {
     background: rgba(36, 41, 51, .85);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+}
+/* 各組按鈕：佔掉翻頁器以外的寬度，放不下就在這塊裡換行 */
+html.vh-list .vh-groups {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
 }
 html.vh-list .vh-group {
     display: flex;
@@ -321,6 +349,7 @@ html.vh-list .vh-chip:focus-visible {
 }
 /* 工具列右側的翻頁器：‹ 第 [N] / M 頁 › */
 html.vh-list .vh-mini {
+    flex: none;
     margin-left: auto;
     display: flex;
     align-items: center;
@@ -367,6 +396,8 @@ html.vh-list :is(.vh-mini-box, .vh-jump) input:focus {
 
 /* 窄螢幕：每組一行，選項橫向捲動，不要把工具列撐成半個螢幕高 */
 @media (max-width: 767px) {
+    html.vh-list .vh-toolbar { flex-wrap: wrap; }
+    html.vh-list .vh-groups { flex-basis: 100%; }
     html.vh-list .vh-group { width: 100%; }
     html.vh-list .vh-chips {
         flex-wrap: nowrap;
@@ -474,6 +505,750 @@ html.vh-list :is(.vh-mini, .vh-pager) :is(a, button):focus-visible {
     html.vh-list .vh-num.vh-far { display: none; }
 }
 
+/* ── 女優：收藏的女優（頭像網格）、單一女優頁的資料卡 ──────────
+ * 頭像網格是 root > div（bg-nord1 的圓角底板）> ul.grid > li；資料卡是 root > div.hero-pattern。
+ * 都沒有 x-show。資料卡的收藏鈕已收藏時帶 bg-primary（Alpine 的 :class），改成跟影片頁一樣的粉色半透明膠囊 */
+html.vh-list :is(.content-without-search, .content-with-search) > div:has(> ul.grid) {
+    padding: 8px 0 0;
+    border-radius: 0;
+    background: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 40px 20px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li a { display: block; }
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li div.rounded-full {
+    width: 136px;
+    height: 136px;
+    box-shadow: 0 0 0 2px rgba(236, 239, 244, .1), 0 12px 30px rgba(0, 0, 0, .45);
+    transition: box-shadow .25s ease, translate .25s ease;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li img { transition: scale .4s ease; }
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li h4 {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--vh-ink);
+    transition: color .2s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li p {
+    font-size: 12px;
+    color: var(--vh-dim);
+}
+@media (hover: hover) {
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div > ul.grid > li:hover div.rounded-full {
+        translate: 0 -4px;
+        box-shadow: 0 0 0 3px var(--vh-focus), 0 18px 40px rgba(0, 0, 0, .55);
+    }
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div > ul.grid > li:hover img { scale: 1.08; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li:hover h4 { color: var(--vh-focus); }
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li a:focus-visible { outline: none; }
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li a:focus-visible div.rounded-full {
+    box-shadow: 0 0 0 3px var(--vh-focus), 0 12px 30px rgba(0, 0, 0, .45);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li a:focus-visible h4 { color: var(--vh-focus); }
+@media (max-width: 640px) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 28px 12px; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li div.rounded-full { width: 96px; height: 96px; }
+}
+
+/* 女優排行：頭像下面的「第 N 名」（bg-yellow-600）改成膠囊；前三名金色，其他淡色 */
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li span.bg-yellow-600 {
+    margin-top: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vh-dim);
+    background: rgba(236, 239, 244, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li:nth-child(-n+3) span.bg-yellow-600 {
+    color: #2e2a1f;
+    background: linear-gradient(135deg, #f6d98b, #d9a94a);
+    box-shadow: 0 4px 14px rgba(217, 169, 74, .35);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > ul.grid > li:nth-child(-n+3) div.rounded-full {
+    box-shadow: 0 0 0 3px #e3bd68, 0 12px 30px rgba(0, 0, 0, .45);
+}
+
+/* 女優一覽的篩選（身高、罩杯、年齡、出道年份）：四個 select，跟工具列同一種深色面板。
+ * 只改 background-color，不用 background：箭頭是 Tailwind forms 畫的 background-image */
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid:has(> select) {
+    gap: 12px;
+    margin-bottom: 20px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select {
+    min-height: 42px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--vh-ink);
+    background-color: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .1);
+    cursor: pointer;
+    transition: background-color .15s, border-color .15s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select:hover { background-color: rgba(255, 255, 255, .09); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select:focus {
+    border-color: var(--vh-focus);
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.grid > select option { color: var(--vh-ink); background: #2e3440; }
+
+/* ── 類型、發行商一覽：root > div.p-8（bg-nord1 底板）> div.grid > div（名稱 a ＋ p > a 片數）──
+ * 底板拿掉，每一格變成卡片；名稱連結的 ::after 鋪滿整張卡，整張都能點 */
+html.vh-list :is(.content-without-search, .content-with-search) > div:has(> div.grid > div > p > a) {
+    padding: 8px 0 0;
+    border-radius: 0;
+    background: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid:has(> div > p > a) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-height: 76px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):not(.vh-rv) {
+    transition: background-color .2s, border-color .2s, box-shadow .2s, translate .2s ease;   /* 同上，不蓋進場 */
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--vh-ink);
+    transition: color .2s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div > p:has(> a) {
+    font-size: 12px;
+    color: var(--vh-dim);
+}
+@media (hover: hover) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover {
+        background: rgba(255, 255, 255, .09);
+        border-color: rgba(255, 255, 255, .16);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, .4);
+    }
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover { translate: 0 -3px; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):hover > a { color: var(--vh-focus); }
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a) > a:focus-visible { outline: none; color: var(--vh-focus); }
+html.vh-list :is(.content-without-search, .content-with-search) > div > div.grid > div:has(> p > a):focus-within {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+
+/* 單一女優頁的資料卡：靠左的半透明面板，按鈕跟影片頁的動作鈕同一種膠囊 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern {
+    justify-content: flex-start;
+    gap: 24px;
+    margin-bottom: 20px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern > * { margin: 0; }
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern > div.rounded-full {
+    flex: none;
+    width: 112px;
+    height: 112px;
+    box-shadow: 0 0 0 2px rgba(236, 239, 244, .1), 0 12px 30px rgba(0, 0, 0, .45);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern h4 {
+    font-size: clamp(20px, 2vw, 26px);
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern :is(button, a) {
+    min-height: 36px;
+    padding: 0 16px;
+    border-radius: 999px;
+    transition: background-color .15s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern :is(button, a):not(.bg-primary) {
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern :is(button, a):not(.bg-primary):hover { background: rgba(236, 239, 244, .16); }
+/* 已收藏（bg-primary）：跟影片頁的啟用中按鈕同一種粉色半透明膠囊，不用網站的實心粉底 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern button.bg-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    border-color: color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern button.bg-primary:hover {
+    background: color-mix(in srgb, var(--vh-primary) 26%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.hero-pattern :is(button, a):focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+
+/* ── 帳戶頁（觀看紀錄、片單、收藏的女優）：「我的帳戶」和右邊的動作鈕 ──
+ * 工具列是 root > div.flex.justify-between.mb-6；一般列表頁的篩選下拉轉成按鈕後只剩這個（見 initToolbar）。
+ * 下拉選單有 x-show，只改裡面那層的配色，不碰它的 display */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 { gap: 12px; }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a,
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary {
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    transition: background-color .15s;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a {
+    color: var(--vh-ink);
+    background: rgba(236, 239, 244, .08);
+    border: 1px solid rgba(255, 255, 255, .08);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > a:hover { background: rgba(236, 239, 244, .16); }
+/* 建立片單、修改片單：跟啟用中的按鈕同一種粉色膠囊 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vh-primary) 45%, transparent);
+    box-shadow: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a.bg-primary:hover {
+    background: color-mix(in srgb, var(--vh-primary) 26%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 a:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+/* 下拉選單：網站是淺色底，改成跟頁面一致的深色玻璃 */
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md {
+    overflow: hidden;
+    border-radius: 12px;
+    color: var(--vh-ink);
+    background: rgba(36, 41, 51, .92);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md :is(p, a) { color: var(--vh-ink); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md p:first-child { color: var(--vh-dim); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md .border-t { border-color: rgba(255, 255, 255, .1); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md a:hover { background: rgba(236, 239, 244, .1); }
+html.vh-list :is(.content-without-search, .content-with-search) > div.flex.justify-between.mb-6 .relative > div > div.rounded-md a.text-red-600 { color: #ef7d87; }
+
+/* ── 片單列表（/playlists）：一列一個改成卡片網格 ──────────
+ * root > div[x-data] > div.overflow-hidden > ul[role=list] > li > a；都沒有 x-show */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] > div.overflow-hidden:has(> ul > li > a[href*="/playlists/"]) {
+    overflow: visible;          /* 不然 hover 浮起和陰影會被切掉 */
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"]:has(> li > a[href*="/playlists/"]) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]) {
+    margin: 0;                  /* space-y-4 */
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+/* 進場中（.vh-rv）不設：這條比 .vh-rv 的 transition 具體，會把淡入上浮蓋掉 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):not(.vh-rv) {
+    transition: background-color .2s, border-color .2s, box-shadow .2s, translate .2s ease;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] { border-radius: inherit; }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div { padding: 18px 20px; }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] p.text-base {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] p.rounded-full {
+    padding: 0 10px;
+    font-weight: 600;
+    color: #ebcb8b;
+    background: rgba(235, 203, 139, .14);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div > div + div {
+    margin-top: 10px;
+    gap: 4px 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--vh-dim);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"] > div > div + div * { font-size: inherit; color: inherit; }
+@media (hover: hover) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):hover {
+        background: rgba(255, 255, 255, .09);
+        border-color: rgba(255, 255, 255, .16);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, .45);
+    }
+    html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(> a[href*="/playlists/"]):hover { translate: 0 -3px; }
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li > a[href*="/playlists/"]:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+}
+/* 沒有片單 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > div.py-8 h3 {
+    font-size: 15px;
+    color: var(--vh-dim);
+}
+
+/* ── 片單裡的影片（/playlists/<key>）：每列是縮圖＋評語表單 ──────
+ * li 有 x-show（刪除後 show = false 收起來），display 歸 Alpine：只改外觀，不改 display，
+ * 橫排靠它原本的 sm:flex */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) {
+    gap: 24px;
+    align-items: flex-start;
+    max-width: 1100px;
+    margin: 0 0 16px;           /* 原本 mx-auto、space-y-8 */
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) > div.w-72 {
+    width: min(360px, 100%);
+    margin: 0;
+}
+@media (max-width: 639px) {
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) { width: auto; }
+    html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li:has(.thumbnail) > div.w-72 { margin-bottom: 14px; }
+}
+/* 縮圖不放大：這裡是一列一列，放大會蓋到旁邊的表單 */
+html.vh-list:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li .thumbnail:hover {
+    transform: none;
+    box-shadow: none;
+    background: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li .thumbnail > .relative {
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form label {
+    -webkit-line-clamp: 2;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--vh-ink);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--vh-ink);
+    background: rgba(0, 0, 0, .25);
+    border: 1px solid rgba(236, 239, 244, .14);
+    box-shadow: none;
+    resize: vertical;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea::placeholder { color: var(--vh-dim); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form textarea:focus {
+    border-color: var(--vh-focus);
+    --tw-ring-shadow: 0 0 #0000;
+    outline: none;
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button {
+    min-height: 36px;
+    padding: 0 18px;
+    border-radius: 999px;
+    box-shadow: none;
+    transition: background-color .15s, opacity .15s;
+}
+/* 提交：粉色膠囊；送出中網站加 bg-nord3（:class），改成變淡 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary:hover { background: color-mix(in srgb, var(--vh-primary) 26%, transparent); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.bg-primary.bg-nord3 { opacity: .5; }
+/* 刪除：網站是白底紅字，改成透明底紅字，滑過才出現紅底 */
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.text-red-700 {
+    color: #ef7d87;
+    background: transparent;
+    border: 1px solid rgba(239, 125, 135, .35);
+}
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button.text-red-700:hover { background: rgba(239, 125, 135, .14); }
+html.vh-list :is(.content-without-search, .content-with-search) > div[x-data] ul[role="list"] > li form button:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+/* ── 需要登入的頁面（沒登入時的片單、收藏、觀看紀錄）────────
+ * root > div[x-data] > h1 + div.text-center > a（「登入」，@click 開登入視窗）；載入時網站自己就會跳出登入視窗。
+ * 改成置中的玻璃卡片，上面一個鎖頭。沒有 x-show */
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) {
+    max-width: 420px;
+    margin: max(6vh, 24px) auto;
+    padding: 36px 32px 32px;
+    text-align: center;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary)::before {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eceff4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='9' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") center / 26px no-repeat,
+        color-mix(in srgb, var(--vh-primary) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > h1 {
+    margin-bottom: 8px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > h1::after {
+    content: "登入後才能使用";
+    display: block;
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--vh-dim);
+}
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data]:has(> h1 + div.text-center > a.bg-primary) > div.text-center { margin-top: 24px; }
+
+/* 主要按鈕：需要登入頁的「登入」、登入視窗的送出鈕（網站的 .button-primary）。實心粉色膠囊 */
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary,
+html.vh-wide div[x-show="showModal.login"] button.button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--vh-primary);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--vh-primary) 35%, transparent);
+    transition: filter .15s, box-shadow .15s, scale .15s;
+}
+html.vh-wide div[x-show="showModal.login"] button.button-primary { width: 100%; }
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:hover,
+html.vh-wide div[x-show="showModal.login"] button.button-primary:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--vh-primary) 50%, transparent);
+}
+html.vh-wide:not(.vh-reduce) :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:active,
+html.vh-wide:not(.vh-reduce) div[x-show="showModal.login"] button.button-primary:active { scale: .97; }
+html.vh-wide :is(.content-without-search, .content-with-search) > div[x-data] > div.text-center > a.bg-primary:focus-visible,
+html.vh-wide div[x-show="showModal.login"] button.button-primary:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 3px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-wide div[x-show="showModal.login"] button.button-primary:disabled { opacity: .6; }
+
+/* ── 頁首的搜尋列（點放大鏡打開，template x-if 產生，在 layout root 外面）──────
+ * form > div.sm:container > div.flex > div.flex.rounded-md（input[x-ref=search] ＋ 搜尋鈕）；
+ * 下面是搜尋紀錄（x-show，只改配色）。輸入框和按鈕原本是一左一右的方框，改成一整條膠囊，按鈕收在右端 */
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) {
+    align-items: center;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(236, 239, 244, .16);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+    transition: border-color .15s, background-color .15s;
+}
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]):focus-within {
+    border-color: var(--vh-focus);
+    background: rgba(255, 255, 255, .1);
+}
+html.vh-wide input[x-ref="search"] {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 15px;
+    color: var(--vh-ink);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+html.vh-wide input[x-ref="search"]::placeholder { color: var(--vh-dim); }
+html.vh-wide input[x-ref="search"]:focus { background: transparent; }
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button {
+    height: 40px;
+    margin: 0;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    font-weight: 600;
+    color: #242933;
+    background: var(--vh-focus);
+    transition: filter .15s;
+}
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button:hover { filter: brightness(1.1); }
+html.vh-wide div.flex.rounded-md:has(> div > input[x-ref="search"]) > button:focus-visible {
+    outline: 2px solid var(--vh-focus);
+    outline-offset: 3px;
+}
+/* 搜尋紀錄：黃字改成焦點藍，前面加一個「最近搜尋」 */
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 {
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--vh-dim);
+}
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1::before { content: "最近搜尋："; }
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 a.text-nord13 { color: var(--vh-focus); }
+html.vh-wide form:has(input[x-ref="search"]) div.line-clamp-1 a.text-nord13:hover { text-decoration: underline; }
+
+/* ── 登入視窗（每一頁都有，在 layout root 外面）───────────
+ * div[x-show="showModal.login"] 底下：遮罩、面板、四個 form（登入／註冊／忘記密碼／更改密碼，各自 x-show）、
+ * 錯誤和成功訊息（x-show）、欄位群組 .text-group（忘記密碼那個有 x-show）。
+ * 這些 x-show 的元素一律只改外觀，不碰 display —— 這個視窗就是當初 content.js 跟 Alpine 搶 display 時壞掉的那個 */
+html.vh-wide div[x-show="showModal.login"] > div > div.fixed[aria-hidden] {
+    background: rgba(8, 9, 14, .6);
+    -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+}
+html.vh-wide div[x-show="showModal.login"] > div > div.inline-block {
+    padding: 32px 28px 28px;
+    border-radius: 20px;
+    color: var(--vh-ink);
+    background: rgba(46, 52, 64, .82);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            backdrop-filter: blur(24px) saturate(1.4);
+}
+@media (min-width: 640px) {
+    html.vh-wide div[x-show="showModal.login"] > div > div.inline-block { max-width: 400px; }
+}
+
+/* 封面牆（browse.js 的 buildLoginArt 插的 .vh-login-art，面板有 data-vh-art）：左欄封面、右欄表單。
+ * 面板沒有 x-show，可以改 display；用 inline-grid 保留網站原本靠 inline-block 垂直置中的做法。
+ * 四個 form 各自 x-show，同一時間只有一個顯示，全部放在右欄同一格 */
+html.vh-wide div[x-show="showModal.login"] .vh-login-art { display: none; }
+@media (min-width: 900px) {
+    html.vh-wide div[x-show="showModal.login"] > div > div.inline-block[data-vh-art] {
+        display: inline-grid;
+        grid-template-columns: 420px 400px;
+        width: 820px;
+        max-width: none;
+        min-height: 560px;
+        padding: 0;
+        border-radius: 24px;
+    }
+    html.vh-wide div[x-show="showModal.login"] > div > div.inline-block[data-vh-art] > form {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+        padding: 48px 36px 40px;
+    }
+    html.vh-wide div[x-show="showModal.login"] .vh-login-art {
+        grid-column: 1;
+        grid-row: 1;
+        position: relative;
+        display: block;
+        overflow: hidden;
+        background: #151821;
+    }
+}
+/* 斜放的 5 欄，相鄰反向慢慢捲；每欄的格子重複一輪，捲到一半剛好接回開頭 */
+html.vh-wide div[x-show="showModal.login"] .vh-wall {
+    position: absolute;
+    inset: -140px -90px;
+    display: flex;
+    gap: 10px;
+    rotate: 12deg;
+}
+html.vh-wide div[x-show="showModal.login"] .vh-col {
+    flex: 1;
+    align-self: flex-start;     /* 高度等於內容，-50% 才是剛好一輪；被撐成牆高就對不上 */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: vh-wall-up 40s linear infinite;
+}
+html.vh-wide div[x-show="showModal.login"] .vh-col:nth-child(even) { animation-direction: reverse; }
+html.vh-wide div[x-show="showModal.login"] .vh-col:nth-child(3) { animation-duration: 55s; }
+html.vh-wide div[x-show="showModal.login"] .vh-col:nth-child(4) { animation-duration: 48s; }
+html.vh-wide div[x-show="showModal.login"] .vh-col:nth-child(5) { animation-duration: 34s; }
+html.vh-wide.vh-reduce div[x-show="showModal.login"] .vh-col { animation: none; }
+@keyframes vh-wall-up { to { transform: translateY(calc(-50% - 5px)); } }    /* 5px：半個 gap，接縫對齊 */
+html.vh-wide div[x-show="showModal.login"] .vh-col > span {
+    flex: none;
+    aspect-ratio: 330 / 222;
+    border-radius: 8px;
+    background: var(--img) center / cover, #2e3440;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
+}
+html.vh-wide div[x-show="showModal.login"] .vh-shade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(10, 10, 16, .55) 0%, transparent 28%, transparent 55%, rgba(10, 10, 16, .88) 100%),
+        linear-gradient(90deg, transparent 75%, rgba(46, 52, 64, .6) 100%);
+}
+html.vh-wide div[x-show="showModal.login"] .vh-brand {
+    position: absolute;
+    top: 26px;
+    left: 28px;
+    font-family: Georgia, serif;
+    font-size: 26px;
+    letter-spacing: .02em;
+    color: var(--vh-ink);
+}
+html.vh-wide div[x-show="showModal.login"] .vh-brand b { font-weight: 400; color: var(--vh-primary); }
+html.vh-wide div[x-show="showModal.login"] .vh-caption {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: 26px;
+}
+html.vh-wide div[x-show="showModal.login"] .vh-k { font-size: 12px; letter-spacing: .12em; color: var(--vh-dim); }
+html.vh-wide div[x-show="showModal.login"] .vh-t {
+    margin-top: 6px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--vh-ink);
+}
+html.vh-wide div[x-show="showModal.login"] form h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--vh-ink);
+}
+html.vh-wide div[x-show="showModal.login"] form h2 + p {
+    margin-top: 6px;
+    color: var(--vh-dim);
+}
+/* 文字連結（註冊一個新帳戶、忘記密碼?）：網站是黃色，改成焦點藍 */
+html.vh-wide div[x-show="showModal.login"] form a.text-nord13 {
+    color: var(--vh-focus);
+    text-decoration: none;
+}
+html.vh-wide div[x-show="showModal.login"] form a.text-nord13:hover { color: #a3d4e0; text-decoration: underline; }
+
+/* 欄位：每格是 div（label ＋ input），一組上下相連。改成一格一格分開的深色圓角欄位，標籤在上 */
+/* 網站的 .text-group 本身是白底外框：欄位的半透明深色疊在白底上會變成灰色，外框要整個拿掉 */
+html.vh-wide div[x-show="showModal.login"] .text-group {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+/* 間距用 margin，不把 .text-group 改成 grid：忘記密碼那組有 x-show，它的 display 歸 Alpine */
+html.vh-wide div[x-show="showModal.login"] .text-group > div + div { margin-top: 10px; }
+html.vh-wide div[x-show="showModal.login"] .text-group > div {
+    position: relative;
+    padding: 8px 14px 6px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, .22);
+    border: 1px solid rgba(236, 239, 244, .12);
+    box-shadow: none;
+    transition: border-color .15s, background-color .15s;
+}
+html.vh-wide div[x-show="showModal.login"] .text-group > div:focus-within {
+    border-color: var(--vh-focus);
+    background: rgba(0, 0, 0, .3);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--vh-dim);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group input {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 2px 0 4px;
+    font-size: 15px;
+    color: var(--vh-ink);
+    background: transparent;
+    border: 0;
+    outline: none;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+}
+/* 自動填入的淡黃底蓋掉 */
+html.vh-wide div[x-show="showModal.login"] .text-group input:-webkit-autofill {
+    -webkit-text-fill-color: var(--vh-ink);
+    -webkit-box-shadow: 0 0 0 40px #262b36 inset;
+    caret-color: var(--vh-ink);
+}
+/* 欄位有錯：網站在 div / label / input 加 bg-red-100、text-red-800（:class），改成深色底的紅框 */
+html.vh-wide div[x-show="showModal.login"] .text-group > div.bg-red-100 {
+    background: rgba(191, 97, 106, .14);
+    border-color: rgba(239, 125, 135, .6);
+}
+html.vh-wide div[x-show="showModal.login"] .text-group label.text-red-800 { color: #ef7d87; }
+html.vh-wide div[x-show="showModal.login"] .text-group input.bg-red-100 { background: transparent; }
+
+/* 錯誤、成功訊息（x-show，只改配色） */
+html.vh-wide div[x-show="showModal.login"] div.bg-red-50 {
+    border-radius: 12px;
+    color: #f2a5ad;
+    background: rgba(191, 97, 106, .16);
+    border: 1px solid rgba(239, 125, 135, .35);
+}
+html.vh-wide div[x-show="showModal.login"] div.bg-emerald-50 {
+    border-radius: 12px;
+    background: rgba(163, 190, 140, .14);
+    border: 1px solid rgba(163, 190, 140, .4);
+}
+html.vh-wide div[x-show="showModal.login"] div.bg-emerald-50 :is(p, svg) { color: #b9d6a0; }
+
+/* 記住我 */
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    color: var(--vh-primary);
+    background-color: transparent;
+    border-color: rgba(236, 239, 244, .35);
+    cursor: pointer;
+}
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"]:checked { background-color: var(--vh-primary); border-color: transparent; }
+html.vh-wide div[x-show="showModal.login"] input[type="checkbox"] + * label,
+html.vh-wide div[x-show="showModal.login"] label[for="login_remember"] { color: var(--vh-ink); cursor: pointer; }
+
 /* ── 影片頁 ────────────────────────────────────────────── */
 /* 外層 div.flex[x-data] 改 grid；主欄 display: contents，讓它的子元素直接當 grid 的格子，
  * 側欄和主欄的子元素變成兄弟，才能用 order 穿插排序而不用搬 DOM。這兩層都沒有 x-show。
@@ -525,7 +1300,14 @@ html.vh-theater :is(div.content-without-search, div.content-with-search) > div.f
 }
 
 /* 標題與按鈕 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { margin-top: 20px; }
+/* 接著看的橫列下緣多出 --lift（44px）給放大的卡片，那一截會伸進標題區；
+ * 那一區是 position: relative（畫在一般區塊上面），透明的捲動容器會吃掉滑鼠，標題上半段點不到、選不了字。
+ * 標題區疊到它上面（5，跟列標題同一層；放大中的卡片是 6，還是壓得過） */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 {
+    position: relative;
+    z-index: 5;
+    margin-top: 20px;
+}
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > h1 {
     font-size: clamp(20px, 1.8vw, 28px);
     font-weight: 700;
@@ -537,7 +1319,7 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
     gap: 8px;
     padding: 14px 0 20px;
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button {
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a) {
     min-height: 40px;
     margin: 0;
     padding: 0 16px;
@@ -546,11 +1328,66 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
     background: rgba(236, 239, 244, .08);
     transition: background-color .15s;
 }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(236, 239, 244, .16); }
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:focus-visible {
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a):hover { background: rgba(236, 239, 244, .16); }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a):focus-visible {
     outline: 2px solid var(--vh-focus);
     outline-offset: 2px;
 }
+/* 啟用中（已收藏、片單／分享面板開著）：網站在按鈕上加 text-primary（Alpine 的 :class）。
+ * 上面的 color 會把它蓋成白色，這裡還原成粉色並加淡粉底；女優頁的收藏鈕用同一種（女優那段）。
+ * 外框用 inset box-shadow，不用 border：沒開玻璃時本來沒有 border，切換會差 2px */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a).text-primary {
+    color: var(--vh-primary);
+    background: color-mix(in srgb, var(--vh-primary) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vh-primary) 45%, transparent);
+}
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a).text-primary:hover {
+    background: color-mix(in srgb, var(--vh-primary) 26%, transparent);
+}
+
+/* 分享、片單面板（x-show，只改外觀）：網站的灰底換成跟詳情一樣的半透明面板 */
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :is(div[x-show*="share"], div[x-show*="playlist"]) {
+    position: relative;
+    z-index: 5;
+    margin-bottom: 20px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+}
+/* 片單：每個片單一個勾選框。網站把勾選框和名稱塞在 h-5 的同一行，名字長就擠在一起 */
+html.vh-video div[x-show*="playlist"] fieldset > div {
+    margin-bottom: 4px;
+}
+html.vh-video div[x-show*="playlist"] fieldset > div > div.h-5 {
+    height: auto;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    transition: background-color .15s;
+}
+html.vh-video div[x-show*="playlist"] fieldset > div > div.h-5:hover { background: rgba(236, 239, 244, .08); }
+html.vh-video div[x-show*="playlist"] fieldset input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    color: var(--vh-primary);
+    background-color: transparent;
+    border-color: rgba(236, 239, 244, .35);
+    cursor: pointer;
+}
+html.vh-video div[x-show*="playlist"] fieldset input[type="checkbox"]:checked { background-color: var(--vh-primary); border-color: transparent; }
+html.vh-video div[x-show*="playlist"] fieldset label { color: var(--vh-ink); font-size: 14px; }
+html.vh-video div[x-show*="playlist"] fieldset hr { border-color: rgba(255, 255, 255, .1); }
+html.vh-video div[x-show*="playlist"] fieldset > a {
+    min-height: 36px;
+    padding: 0 14px 0 10px;
+    border-radius: 999px;
+    color: var(--vh-ink);
+    transition: background-color .15s;
+}
+html.vh-video div[x-show*="playlist"] fieldset > a:hover { background: rgba(236, 239, 244, .08); }
 
 /* 詳情：推廣連結收掉；每列「標籤＋值」用懸掛縮排對齊，值改膠囊。
  * 父層 font-size: 0 是為了藏掉連結之間的純文字逗號，子元素再設回字級。
@@ -710,14 +1547,14 @@ html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.f
 html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div.bg-black { background: transparent; }
 
 /* 玻璃面板：半透明＋背景模糊，透出底下的色調 */
-html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button,
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a),
 html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
     background: rgba(255, 255, 255, .055);
     border: 1px solid rgba(255, 255, 255, .08);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
             backdrop-filter: blur(16px) saturate(1.3);
 }
-html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > button:hover { background: rgba(255, 255, 255, .12); }
+html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a):hover { background: rgba(255, 255, 255, .12); }
 html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mb-8 {
     padding: 16px 20px;
     border-radius: 12px;

@@ -7,6 +7,8 @@
     // 這裡只做 CSS 做不到的事：標記哪些網格要變橫列、插自己的節點、量尺寸。
     // 不寫任何 Alpine 會用 x-show 控制的 display —— 見 CLAUDE.md 登入 modal 那段。
     const html = document.documentElement;
+    // browse.css 在標上 vh-ready 前先藏住 layout root（防閃）：每一條結束的路都要標
+    const ready = () => html.classList.add("vh-ready");
     await VHS.ready;
 
     // 防暫停的設定：anti-pause.js 在 MAIN world 讀不到 chrome.storage，從 <html> 的 data 屬性讀。
@@ -21,11 +23,32 @@
     applyAntiPause();
     VHS.subscribe(applyAntiPause);
 
+    // 廣告：browse.css 裡不分頁面種類的那幾條（右下角、直播小窗、頁尾上方 300×250）每一頁都要收，
+    // 不能等下面的頁面判斷——認不得的頁面會在那裡就 return
+    const applyAds = () => html.classList.toggle("vh-hide-ads", VHS.on("hideAds"));
+    applyAds();
+    VHS.subscribe(applyAds);
+
+    // 網站的 primary 色（粉）：啟用中的按鈕（已收藏等）用它。量一個帶 text-primary 的元素；
+    // 量到的跟 body 一樣表示站台沒有這個 class，留 browse.css 的預設值
+    const probe = document.createElement("span");
+    probe.className = "text-primary";
+    probe.hidden = true;
+    document.body.append(probe);
+    const primary = getComputedStyle(probe).color;
+    probe.remove();
+    if (primary && primary !== getComputedStyle(document.body).color) html.style.setProperty("--vh-primary", primary);
+
     const kind = VH.kind();
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
-    if (!root) return;
+    if (!root) return ready();
     html.classList.add("vh-wide");
-    if (!kind) return;
+    // 登入視窗的封面牆（initLoginArt 在下面）。常數放這裡：下一行就會用到，而且認不得的頁面會在 kind 那裡 return
+    const LOGIN_KEY = "vh:loginCovers";
+    const LOGIN_MIN = 6;
+    const COVER_T = /https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg/g;
+    initLoginArt();
+    if (!kind) return ready();
     html.dataset.vhKind = kind;         // 廣告這類跟改版開關無關的規則用它認頁面
 
     // 會改 DOM 結構的設定只在載入時讀一次，popup 改了要重新整理（settings.js 的 RELOAD）
@@ -34,9 +57,21 @@
     const ROWS = restyle && (kind === "video" || VHS.on("homeRows"));
     const CHIPS = kind === "list" && restyle && VHS.on("listChips");
     const PAGER = kind === "list" && restyle && VHS.on("listPager");
+    // 沒有影片卡（也就不會有 hero）的格子頁，每一格是一個進場單位：
+    // 女優頭像網格（收藏的女優、女優一覽、女優排行）、片單列表（/playlists）、類型／發行商一覽
+    const PEOPLE = kind === "list" && Boolean(root.querySelector(":scope > div > ul.grid img"));
+    const LISTS = kind === "list" && !root.querySelector(".thumbnail") &&
+        Boolean(root.querySelector(':scope > div[x-data] ul[role="list"] > li > a[href*="/playlists/"]'));
+    const TAGS = kind === "list" && Boolean(root.querySelector(":scope > div > div.grid > div > p > a"));
+    const TILES = PEOPLE ? ":scope > div > ul.grid > li" :
+        LISTS ? ':scope > div[x-data] ul[role="list"] > li' :
+        TAGS ? ":scope > div > div.grid > div" : null;
+    // 自己的收藏、片單格子少，一載入就整頁一個一個演；女優一覽（24）、排行（100）、類型（36）照捲動演，
+    // 不然最下面那格要等十幾秒
+    const SHEET = TILES && /^\/(saved|playlists)(\/|$)/.test(location.pathname) ? TILES : null;
 
     const reduced = () => VHS.reduced();
-    const heroOn = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
+    const heroOn = () => VH.hero() && VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
 
     // ── 頁首高度 ──────────────────────────────────────────────
     // 頁首是 fixed 的；sticky 工具列要停在它下面，首頁 hero 要往上鑽到它底下
@@ -176,21 +211,30 @@
 
     // ── 列表頁：工具列 ────────────────────────────────────────
     function initToolbar() {
-        const old = root.querySelector(":scope > div.flex.justify-between.mb-6");
+        // 女優一覽的排序下拉在靠右的 div.flex.justify-end.mb-3 裡
+        const old = root.querySelector(":scope > div.flex.justify-between.mb-6, :scope > div.flex.justify-end.mb-3");
         if (!old || old.classList.contains("vh-gone")) return;
 
-        const groups = [...old.querySelectorAll(":scope > .relative")].map(box => {
+        // 只轉「名稱: 值」的下拉。其他的（收藏女優頁的「我的帳戶」，選項是登出、刪除帳號，
+        // 有的靠 @click 而不是 href）留在原本的工具列裡
+        const boxes = [...old.querySelectorAll(":scope > .relative")];
+        const groups = boxes.map(box => {
             const label = box.querySelector(":scope > a > span")?.textContent.trim() || "";
+            if (!/[:：]/.test(label)) return null;
             const [name, current = ""] = label.split(/[:：]/).map(t => t.trim());
             const options = [...box.querySelectorAll(":scope > div a[href]")]
                 .map(a => ({ text: a.textContent.trim(), href: a.href }))
                 .filter(o => o.text);
-            return { name, current, options };
-        }).filter(g => g.name && g.options.length);
+            return { box, name, current, options };
+        }).filter(g => g && g.name && g.options.length);
         if (!groups.length) return;         // 結構跟預期不同就保留原本的下拉
 
         const bar = document.createElement("div");
         bar.className = "vh-toolbar";
+        // 各組按鈕包在一起：放不下時在左邊這塊裡換行，右邊的翻頁器不會被擠到下一行
+        const set = document.createElement("div");
+        set.className = "vh-groups";
+        bar.append(set);
         for (const g of groups) {
             const group = document.createElement("div");
             group.className = "vh-group";
@@ -210,14 +254,16 @@
                 chips.append(a);
             }
             group.append(name, chips);
-            bar.append(group);
+            set.append(group);
         }
 
         const page = PAGER ? pageInfo() : null;
         if (page) bar.append(miniPager(page));
 
         old.before(bar);
-        old.classList.add("vh-gone");
+        // 全部轉完才收整條；有留下來的就只收轉過的那幾格（.relative 沒有 x-show）
+        if (groups.length === boxes.length) old.classList.add("vh-gone");
+        else groups.forEach(g => g.box.classList.add("vh-gone"));
     }
 
     // 網站原本的分頁列（不是自己插的 .vh-pager / .vh-mini）
@@ -455,6 +501,8 @@
             card.dataset.vhTidy = "1";
             card.querySelectorAll("a[href]").forEach(a => { if (a !== title) a.tabIndex = -1; });
         });
+        // 類型、發行商的卡片：名稱和片數是同一個連結，只留名稱
+        if (TAGS) root.querySelectorAll(":scope > div > div.grid > div > p > a").forEach(a => { a.tabIndex = -1; });
     }
 
     // ── 卡片：捲動進場 ────────────────────────────────────────
@@ -478,14 +526,18 @@
         revealBatch = [];
         items.sort((a, b) => Math.round(a.r.top - b.r.top) || a.r.left - b.r.left);
         const gap = VHS.get("revealGap");
-        const ms = VHS.get("revealMs");
+        // 一般頁面同一批最多錯開 8 個，之後的同時出現。女優頁、片單列表（SHEET）整頁一起演，不設上限：
+        // 每個都隔同樣的間隔一個一個浮出，越下面越晚；長度放慢成 1.25 倍（跟著設定走）
+        const ms = VHS.get("revealMs") * (SHEET ? 1.25 : 1);
         items.forEach(({ el }, i) => {
-            const delay = Math.min(i, 8) * gap;
+            const delay = (SHEET ? i : Math.min(i, 8)) * gap;
             el.style.setProperty("--vh-rv-d", `${delay}ms`);
+            if (SHEET) el.style.setProperty("--vh-rv-ms", `${ms}ms`);
             el.classList.add("vh-in");
             setTimeout(() => {
                 el.classList.remove("vh-rv", "vh-in");
                 el.style.removeProperty("--vh-rv-d");
+                el.style.removeProperty("--vh-rv-ms");
             }, delay + ms + 50);
         });
     }
@@ -493,7 +545,7 @@
     // 首頁、列表頁的 hero 是之後才插進來的。插進來之前卡片就在第一屏，一觀察就演完了，
     // 等 hero 把它們推到下面，使用者捲下去看到的是已經出現好的卡片。
     // 所以先只標 .vh-rv（藏起來），等 hero 就位（或等不到它）才開始觀察
-    let revealReady = kind === "video" || !heroOn();
+    let revealReady = kind === "video" || Boolean(TILES) || !heroOn();
     const pending = [];
     if (!revealReady) setTimeout(() => startReveal(), 3000);   // 保險：沒有可輪播的卡片時 hero 不會出現
 
@@ -515,19 +567,48 @@
         });
     }
 
+    // 標成 .vh-rv（透明）時先關掉 transition：元素可能已經畫在畫面上，帶著 transition 會從可見慢慢淡成透明，
+    // 緊接著加上 .vh-in 又轉回可見，看起來就像沒演。整批一起標、只強制算一次樣式
+    function hideForReveal(els) {
+        if (!els.length) return;
+        const prev = els.map(el => el.style.transition);
+        for (const el of els) {
+            el.style.transition = "none";
+            el.classList.add("vh-rv");
+        }
+        void root.offsetWidth;          // 讓透明狀態先生效，之後的 .vh-in 才有起點
+        els.forEach((el, i) => { el.style.transition = prev[i]; });
+    }
+
     function initReveal() {
         if (!revealOn()) return;
+        const marked = [];
         root.querySelectorAll(".thumbnail").forEach(card => {
             // 沒有排版框的卡片不標：隨機區的預載卡藏在 .hidden 容器裡，「好手氣」會把它的
             // innerHTML 原封不動複製進網格，標過的 vh-rv（透明）跟著過去卻再也不會被觀察到
             if (!card.getClientRects().length) return;
-            const unit = card.closest("[data-vh-row] > *, div.grid > *") || card;
+            // 片單裡的影片：一列是 li（縮圖＋評語表單），整列一起演
+            const unit = card.closest('[data-vh-row] > *, div.grid > *, ul[role="list"] > li') || card;
             if (unit.dataset.vhRv) return;
             unit.dataset.vhRv = "1";
-            unit.classList.add("vh-rv");
+            marked.push(unit);
+        });
+        hideForReveal(marked);
+        marked.forEach(unit => {
             if (revealReady) revealIO.observe(unit);
             else pending.push(unit);
         });
+        // 沒有 .thumbnail 的格子（TILES）。上面沒有輪播：SHEET 不用等捲到才演，整頁一起進同一批，
+        // 依畫面順序錯開；其他的直接觀察
+        if (TILES) {
+            const tiles = [...root.querySelectorAll(TILES)].filter(t => !t.dataset.vhRv);
+            tiles.forEach(t => { t.dataset.vhRv = "1"; });
+            hideForReveal(tiles);
+            if (SHEET) {
+                if (tiles.length && !revealBatch.length) requestAnimationFrame(revealFlush);
+                revealBatch.push(...tiles);
+            } else tiles.forEach(t => revealIO.observe(t));
+        }
         // hero 的 host 一插進來時裡面還是 hidden（第一張封面載完才顯示），高度幾乎是 0；
         // 那個切換發生在 Shadow DOM 裡，上面的 MutationObserver 看不到，所以盯 host 的尺寸
         const host = root.querySelector(':scope > [data-video-helper="hero"]');
@@ -541,6 +622,97 @@
             });
             ro.observe(host);
         }
+    }
+
+    // ── 登入視窗：左邊的封面牆 ────────────────────────────────
+    // 每一頁都有登入視窗（div[x-show="showModal.login"]，在 layout root 外面）。打開時在面板最前面插一欄
+    // 斜放、慢慢捲的封面縮圖（cover-t.jpg，330×222，格子小用縮圖就夠）；面板本身沒有 x-show。
+    // 封面來源依序：目前頁面的卡片 → 本機快取（一天）→ 向同站抓首頁的 HTML，不夠再抓「最近更新」。
+    // 只在視窗真的打開、前兩者都不夠時才發請求；都拿不到就維持單欄
+    function initLoginArt() {
+        const modal = document.querySelector('div[x-show="showModal.login"]');
+        const panel = modal?.querySelector(":scope > div > div.inline-block:has(> form)");
+        if (!panel) return;
+        const open = () => modal.style.display !== "none";
+        let busy = false;
+        const tryBuild = async () => {
+            if (busy || panel.dataset.vhArt || !open()) return;
+            busy = true;
+            // 等封面時先藏面板（遮罩照常），好了直接以雙欄出現；要抓首頁時最多等 1.2 秒，
+            // 超過就先顯示單欄，封面晚到再補上
+            panel.classList.add("vh-art-wait");
+            const unveil = setTimeout(() => panel.classList.remove("vh-art-wait"), 1200);
+            const covers = await loginCovers().catch(() => []);
+            clearTimeout(unveil);
+            if (covers.length >= LOGIN_MIN && !panel.dataset.vhArt) buildLoginArt(panel, covers);
+            panel.classList.remove("vh-art-wait");
+            busy = false;
+        };
+        // x-show 開關寫的是 inline display，盯 style 屬性
+        new MutationObserver(tryBuild).observe(modal, { attributes: true, attributeFilter: ["style"] });
+        tryBuild();         // 需要登入的頁面一載入就自己打開
+    }
+
+    async function loginCovers() {
+        const here = [...new Set([...document.querySelectorAll(".thumbnail img")]
+            .map(img => img.dataset.src || img.src)
+            .filter(u => /^https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg$/.test(u)))];
+        if (here.length >= 18) return here;
+        const saved = (await chrome.storage.local.get(LOGIN_KEY).catch(() => ({})))[LOGIN_KEY];
+        if (saved?.list?.length >= LOGIN_MIN && Date.now() - saved.t < 864e5) return [...new Set([...here, ...saved.list])];
+        if (here.length >= LOGIN_MIN) return here;
+        // 首頁網址取頁首的 logo 連結（帶語系前綴時也對）；最近更新取選單裡結尾是 /new 的連結
+        const pages = [
+            document.querySelector("div.fixed.z-max.w-full a[href]")?.href || `${location.origin}/`,
+            [...document.querySelectorAll("a[href]")].find(a => /\/new\/?$/.test(new URL(a.href).pathname))?.href,
+        ].filter(Boolean);
+        for (const url of pages) {
+            const r = await fetch(url, {
+                credentials: "include",
+                headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+            }).catch(() => null);
+            if (!r?.ok) continue;
+            const list = [...new Set((await r.text()).match(COVER_T) || [])].slice(0, 36);
+            if (list.length < LOGIN_MIN) continue;
+            chrome.storage.local.set({ [LOGIN_KEY]: { t: Date.now(), list } }).catch(() => {});
+            return [...new Set([...here, ...list])];
+        }
+        return here;
+    }
+
+    function buildLoginArt(panel, covers) {
+        // 洗牌後分 5 欄，每欄重複一輪：往上捲到一半時畫面跟開頭一樣，動畫接回去看不出接縫
+        const pool = covers.slice();
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const COLS = 5;
+        const picked = pool.slice(0, 30);
+        const art = document.createElement("div");
+        art.className = "vh-login-art";
+        art.setAttribute("aria-hidden", "true");
+        const wall = document.createElement("div");
+        wall.className = "vh-wall";
+        for (let c = 0; c < COLS; c++) {
+            const col = document.createElement("div");
+            col.className = "vh-col";
+            const tiles = picked.filter((_, k) => k % COLS === c);
+            // 一輪至少 12 格（欄窄，一格約 70px 高；要比斜放後的牆高），封面少的時候重複補滿
+            let round = tiles;
+            while (round.length < 12) round = round.concat(tiles);
+            for (const u of [...round, ...round]) {
+                const s = document.createElement("span");
+                s.style.setProperty("--img", `url("${u}")`);
+                col.append(s);
+            }
+            wall.append(col);
+        }
+        art.innerHTML = `<div class="vh-shade"></div><div class="vh-brand">MISS<b>AV</b></div>
+            <div class="vh-caption"><div class="vh-k">登入後可以</div><div class="vh-t">收藏影片、建立片單、記下觀看紀錄</div></div>`;
+        art.prepend(wall);
+        panel.prepend(art);
+        panel.dataset.vhArt = "1";
     }
 
     // ── 設定：即時套用的部分 ──────────────────────────────────
@@ -601,6 +773,7 @@
 
     applySettings();
     refresh();
+    ready();                    // class、工具列、分頁列都已就位，才放出來
     VHS.subscribe(() => {
         applySettings();
         initReveal();                           // 捲動進場剛被打開時，從現在起的卡片開始標

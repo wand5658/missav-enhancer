@@ -32,6 +32,7 @@
 
     // ── 項目描述 ──────────────────────────────────────────────
     // sw：開關；range：滑桿（pct 表示存 0–1、顯示 0–100%）；seg：單選；multi：複選陣列；flags：每個選項各是一個布林 key
+    // hint 是標籤下的一行小字；note 是整列下方較長的說明（可換行）
     const o = (v, zh, en = zh) => ({ v, zh, en });
     const GROUPS = [
         { id: "general", ico: "⚙", title: o(0, "一般", "General"), items: [
@@ -56,8 +57,17 @@
             { type: "range", key: "heroSpeed", label: o(0, "切換速度", "Transition speed"), min: 300, max: 1500, step: 50, unit: "ms" },
             { type: "sw", key: "heroPreview", label: o(0, "播放預覽影片", "Play preview clips"), hint: o(0, "關掉只顯示封面，省流量", "Off: covers only, saves data") },
             { type: "sw", key: "heroHD", label: o(0, "高畫質預覽", "HD previews"), hint: o(0, "從正片挑片段播放；拿不到時用原本的預覽", "Plays clips picked from the full video; falls back to the normal preview") },
-            { type: "seg", key: "heroHDQuality", label: o(0, "畫質", "Quality"), options: [o("auto", "自動", "Auto"), o("480p", "480p", "480p"), o("720p", "720p", "720p"), o("1080p", "1080p", "1080p")] },
-            { type: "seg", key: "heroHDPick", label: o(0, "片段", "Clip"), options: [o("smart", "自動挑選", "Auto-pick"), o("even", "平均分布", "Evenly spaced")] },
+            { type: "seg", key: "heroHDQuality", label: o(0, "畫質", "Quality"),
+              hint: o(0, "自動：依畫框大小選 480p 或 720p。越高越清楚，也越耗流量", "Auto picks 480p or 720p by frame size. Higher looks sharper and uses more data"),
+              options: [o("auto", "自動", "Auto"), o("480p", "480p", "480p"), o("720p", "720p", "720p"), o("1080p", "1080p", "1080p")] },
+            { type: "seg", key: "heroHDPick", label: o(0, "片段", "Clip"),
+              hint: o(0, "自動挑選：從預覽縮圖找有人物、有動作的段落。平均分布：固定取 10%～80% 的位置，跟網站原本的預覽一樣",
+                         "Auto-pick looks for scenes with people and motion in the scrub thumbnails. Evenly spaced takes fixed spots from 10% to 80%, like the site's own preview"),
+              options: [o("smart", "自動挑選", "Auto-pick"), o("even", "平均分布", "Evenly spaced")] },
+            { type: "range", key: "heroHDWait", label: o(0, "高畫質等待上限", "HD wait limit"), min: 1, max: 8, step: 0.5, unit: "sec",
+              hint: o(0, "等不到就先播原本的預覽", "Then plays the normal preview"),
+              note: o(0, "每張出現後，最多等這麼久讓高畫質開始播（找串流＋載入），等待時畫面是封面慢慢放大。\n・常看到低畫質預覽 → 調長（網路慢建議 4～6 秒）\n・覺得封面停太久才開始動 → 調短",
+                         "How long each slide waits for the HD clip to start (finding the stream and loading it); meanwhile the cover slowly zooms.\n• Often get the low-res preview → raise it (4–6 s on a slow connection)\n• Cover sits too long before moving → lower it") },
             { type: "sw", key: "heroTint", label: o(0, "背景跟著封面換色", "Tint page from the cover") },
         ] },
         { id: "home", ico: "▤", title: o(0, "首頁", "Home page"), items: [
@@ -109,6 +119,8 @@
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const reloadTag = key => key && VHS.RELOAD.has(key) ? `<span class="tag">${t("reloadTag")}</span>` : "";
 
+    const note = it => it.note ? `<p class="note">${esc(L(it.note))}</p>` : "";
+
     function itemHtml(it) {
         const lab = `<span class="label">${esc(L(it.label))}${reloadTag(it.key)}${it.hint ? `<span class="hint">${esc(L(it.hint))}</span>` : ""}</span>`;
         const v = it.key ? VHS.get(it.key) : null;
@@ -116,7 +128,7 @@
             return `<div class="row">${lab}<label class="sw"><input type="checkbox" data-key="${it.key}" ${v ? "checked" : ""} aria-label="${esc(L(it.label))}"><span></span></label></div>`;
         if (it.type === "range") {
             const shown = it.pct ? Math.round(v * 100) : v;
-            return `<div class="row">${lab}<input type="range" data-key="${it.key}" min="${it.min}" max="${it.max}" step="${it.step}" value="${shown}" aria-label="${esc(L(it.label))}"><span class="val">${fmt(it, v)}</span></div>`;
+            return `<div class="row">${lab}<input type="range" data-key="${it.key}" min="${it.min}" max="${it.max}" step="${it.step}" value="${shown}" aria-label="${esc(L(it.label))}"><span class="val">${fmt(it, v)}</span></div>${note(it)}`;
         }
         if (it.type === "seg")
             return `<div class="row">${lab}<div class="seg" data-key="${it.key}" data-mode="one">${it.options.map(op =>
