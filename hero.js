@@ -23,7 +23,7 @@
     const enabled = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
     const POOL_MAX = 40;
     const hdOn = () => VHS.on("heroHD") && VHS.get("heroPreview");
-    const HD_WAIT_MS = 2500;        // 高畫質最多等多久，超過就先播 preview.mp4
+    const HD_MIN_PLAY_MS = 1000;    // 網址拿得慢時，串流起播至少給這麼久
     const MIN_VISIBLE = 0.5;        // hero 露出不到一半就整個暫停
 
     const pool = [];                // [{id, href, title, tags, cover, coverLo, preview}]
@@ -172,20 +172,23 @@
         bg.className = "bg";
         bg.style.backgroundImage = `url("${cover}")`;
 
-        // 不用 <a href>：整張都是連結，滑鼠停在上面瀏覽器左下角會一直顯示網址。
-        // 改成 role="link" 自己處理點擊；Ctrl/⌘/Shift 點、中鍵照樣開新分頁
-        const link = document.createElement("div");
+        // 整張都是連結，但平常不帶 href：有 href 的話滑鼠停在上面，瀏覽器左下角會一直顯示網址。
+        // 按下任何滑鼠鍵時才補上，左鍵、Ctrl/Shift 點、中鍵、右鍵選單「在新分頁開啟」就都是瀏覽器原生的；
+        // 點完、選單開出來後、滑鼠離開就拿掉
+        const link = document.createElement("a");
         link.className = "link";
         link.setAttribute("role", "link");
         link.tabIndex = 0;
-        const open = e => {
-            if (!item.href) return;
-            if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) window.open(item.href, "_blank", "noopener");
+        const arm = () => { if (item.href) link.href = item.href; };
+        const disarm = () => setTimeout(() => link.removeAttribute("href"), 0);
+        link.addEventListener("pointerdown", arm);
+        for (const t of ["click", "auxclick", "contextmenu", "pointerleave", "pointercancel"]) link.addEventListener(t, disarm);
+        // 鍵盤沒有 pointerdown，Enter 自己處理
+        link.addEventListener("keydown", e => {
+            if (e.key !== "Enter" || !item.href || link.hasAttribute("href")) return;
+            if (e.ctrlKey || e.metaKey || e.shiftKey) window.open(item.href, "_blank", "noopener");
             else location.href = item.href;
-        };
-        link.addEventListener("click", open);
-        link.addEventListener("auxclick", e => { if (e.button === 1) open(e); });
-        link.addEventListener("keydown", e => { if (e.key === "Enter") open(e); });
+        });
 
         const frame = document.createElement("div");
         frame.className = "frame";
@@ -223,7 +226,10 @@
         s._mont = null;                     // 高畫質的快剪播放器（hd.js 的 VHD.montage）
         s._hdState = hdOn() ? "wait" : "none";
         if (s._hdState === "wait") {
-            // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4
+            // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4。
+            // 設定 heroHDWait 是整段的預算：拿到網址後串流起播也算在內，剩不到 HD_MIN_PLAY_MS 就給 HD_MIN_PLAY_MS
+            const t0 = performance.now();
+            const waitMs = VHS.get("heroHDWait") * 1000;
             const done = (e, why) => {
                 if (s._hdState !== "wait") return;
                 console.debug("[hd] slide", item.id, e ? "hd" : `fallback(${why || "none"})`);
@@ -233,11 +239,11 @@
                     s._mont = null;
                     s._hdState = "none";
                     sync();
-                });
+                }, Math.max(HD_MIN_PLAY_MS, waitMs - (performance.now() - t0)));
                 sync();
             };
             VHD.resolve(item, VHS.get("heroHDPick")).then(done);
-            setTimeout(() => done(null, "timeout"), HD_WAIT_MS);
+            setTimeout(() => done(null, "timeout"), waitMs);
         }
         return s;
     }
@@ -455,6 +461,8 @@
 
 .link {
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
     position: relative;
     z-index: 1;
     box-sizing: border-box;

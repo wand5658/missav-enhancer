@@ -101,6 +101,16 @@ details.off .items { opacity: .4; pointer-events: none; }
 .row { display: flex; align-items: center; gap: 10px; min-height: 28px; }
 .label { flex: 1; min-width: 0; }
 .hint { display: block; font-size: 11px; color: var(--dim); }
+.note {
+    margin: -4px 0 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .1);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--dim);
+    white-space: pre-line;
+}
 .tag {
     display: inline-block;
     margin-left: 4px;
