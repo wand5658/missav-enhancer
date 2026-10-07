@@ -35,7 +35,7 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **Actresses**: your saved actresses become a grid of large round avatars that lift on hover; an actress's own page gets a cleaner profile card.
 - **Actress, genre and maker indexes**: the actress list and ranking use the same avatar grid (the top three ranks in gold), with the sort as chips and tidier filters; genres and makers become a grid of cards.
 - **Search**: search results get the list-page treatment, and the search bar becomes a single rounded bar.
-- **Login**: the login, sign-up and password dialogs are restyled, and pages that need an account show a clear sign-in card.
+- **Login**: the login, sign-up and password dialogs are restyled, with a slowly scrolling wall of covers beside the form, and pages that need an account show a clear sign-in card.
 - **History and playlists**: the watch history gets the carousel, wide grid and pagination of the other lists; your playlists become a grid of cards, and a playlist's videos become panels with a larger thumbnail and a tidier comment box. On a video page, the playlist panel is restyled to match.
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**
@@ -60,9 +60,9 @@ Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is i
 
 ## Privacy
 
-- The only permission is `storage`, used for your settings (`chrome.storage.sync`) and, for HD previews, a local cache of each video's stream address and picked clips (`chrome.storage.local`).
+- The only permission is `storage`, used for your settings (`chrome.storage.sync`) and a local cache (`chrome.storage.local`): for HD previews, each video's stream address and picked clips; for the login dialog, a list of cover thumbnail addresses.
 - Host access is limited to `missav.ai` and `missav.ws`.
-- There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. Turn HD previews off and it makes no requests of its own.
+- There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. When the login dialog opens on a page without video cards, it requests the site's home page (or its latest-videos list) once to pick covers for the dialog's cover wall, and keeps that list locally for a day. Turn HD previews off and, apart from that, it makes no requests of its own.
 - No analytics or tracking.
 
 ## Other domains

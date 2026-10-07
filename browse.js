@@ -41,6 +41,11 @@
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
     if (!root) return;
     html.classList.add("vh-wide");
+    // 登入視窗的封面牆（initLoginArt 在下面）。常數放這裡：下一行就會用到，而且認不得的頁面會在 kind 那裡 return
+    const LOGIN_KEY = "vh:loginCovers";
+    const LOGIN_MIN = 6;
+    const COVER_T = /https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg/g;
+    initLoginArt();
     if (!kind) return;
     html.dataset.vhKind = kind;         // 廣告這類跟改版開關無關的規則用它認頁面
 
@@ -615,6 +620,91 @@
             });
             ro.observe(host);
         }
+    }
+
+    // ── 登入視窗：左邊的封面牆 ────────────────────────────────
+    // 每一頁都有登入視窗（div[x-show="showModal.login"]，在 layout root 外面）。打開時在面板最前面插一欄
+    // 斜放、慢慢捲的封面縮圖（cover-t.jpg，330×222，格子小用縮圖就夠）；面板本身沒有 x-show。
+    // 封面來源依序：目前頁面的卡片 → 本機快取（一天）→ 向同站抓首頁的 HTML，不夠再抓「最近更新」。
+    // 只在視窗真的打開、前兩者都不夠時才發請求；都拿不到就維持單欄
+    function initLoginArt() {
+        const modal = document.querySelector('div[x-show="showModal.login"]');
+        const panel = modal?.querySelector(":scope > div > div.inline-block:has(> form)");
+        if (!panel) return;
+        const open = () => modal.style.display !== "none";
+        let busy = false;
+        const tryBuild = async () => {
+            if (busy || panel.dataset.vhArt || !open()) return;
+            busy = true;
+            const covers = await loginCovers();
+            busy = false;
+            if (covers.length >= LOGIN_MIN && !panel.dataset.vhArt) buildLoginArt(panel, covers);
+        };
+        // x-show 開關寫的是 inline display，盯 style 屬性
+        new MutationObserver(tryBuild).observe(modal, { attributes: true, attributeFilter: ["style"] });
+        tryBuild();         // 需要登入的頁面一載入就自己打開
+    }
+
+    async function loginCovers() {
+        const here = [...new Set([...document.querySelectorAll(".thumbnail img")]
+            .map(img => img.dataset.src || img.src)
+            .filter(u => /^https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg$/.test(u)))];
+        if (here.length >= 18) return here;
+        const saved = (await chrome.storage.local.get(LOGIN_KEY).catch(() => ({})))[LOGIN_KEY];
+        if (saved?.list?.length >= LOGIN_MIN && Date.now() - saved.t < 864e5) return [...new Set([...here, ...saved.list])];
+        if (here.length >= LOGIN_MIN) return here;
+        // 首頁網址取頁首的 logo 連結（帶語系前綴時也對）；最近更新取選單裡結尾是 /new 的連結
+        const pages = [
+            document.querySelector("div.fixed.z-max.w-full a[href]")?.href || `${location.origin}/`,
+            [...document.querySelectorAll("a[href]")].find(a => /\/new\/?$/.test(new URL(a.href).pathname))?.href,
+        ].filter(Boolean);
+        for (const url of pages) {
+            const r = await fetch(url, {
+                credentials: "include",
+                headers: { Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+            }).catch(() => null);
+            if (!r?.ok) continue;
+            const list = [...new Set((await r.text()).match(COVER_T) || [])].slice(0, 36);
+            if (list.length < LOGIN_MIN) continue;
+            chrome.storage.local.set({ [LOGIN_KEY]: { t: Date.now(), list } }).catch(() => {});
+            return [...new Set([...here, ...list])];
+        }
+        return here;
+    }
+
+    function buildLoginArt(panel, covers) {
+        // 洗牌後分 5 欄，每欄重複一輪：往上捲到一半時畫面跟開頭一樣，動畫接回去看不出接縫
+        const pool = covers.slice();
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const COLS = 5;
+        const picked = pool.slice(0, 30);
+        const art = document.createElement("div");
+        art.className = "vh-login-art";
+        art.setAttribute("aria-hidden", "true");
+        const wall = document.createElement("div");
+        wall.className = "vh-wall";
+        for (let c = 0; c < COLS; c++) {
+            const col = document.createElement("div");
+            col.className = "vh-col";
+            const tiles = picked.filter((_, k) => k % COLS === c);
+            // 一輪至少 12 格（欄窄，一格約 70px 高；要比斜放後的牆高），封面少的時候重複補滿
+            let round = tiles;
+            while (round.length < 12) round = round.concat(tiles);
+            for (const u of [...round, ...round]) {
+                const s = document.createElement("span");
+                s.style.setProperty("--img", `url("${u}")`);
+                col.append(s);
+            }
+            wall.append(col);
+        }
+        art.innerHTML = `<div class="vh-shade"></div><div class="vh-brand">MISS<b>AV</b></div>
+            <div class="vh-caption"><div class="vh-k">登入後可以</div><div class="vh-t">收藏影片、建立片單、記下觀看紀錄</div></div>`;
+        art.prepend(wall);
+        panel.prepend(art);
+        panel.dataset.vhArt = "1";
     }
 
     // ── 設定：即時套用的部分 ──────────────────────────────────
