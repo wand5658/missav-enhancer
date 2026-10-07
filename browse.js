@@ -7,6 +7,8 @@
     // 這裡只做 CSS 做不到的事：標記哪些網格要變橫列、插自己的節點、量尺寸。
     // 不寫任何 Alpine 會用 x-show 控制的 display —— 見 CLAUDE.md 登入 modal 那段。
     const html = document.documentElement;
+    // browse.css 在標上 vh-ready 前先藏住 layout root（防閃）：每一條結束的路都要標
+    const ready = () => html.classList.add("vh-ready");
     await VHS.ready;
 
     // 防暫停的設定：anti-pause.js 在 MAIN world 讀不到 chrome.storage，從 <html> 的 data 屬性讀。
@@ -39,14 +41,14 @@
 
     const kind = VH.kind();
     const root = document.querySelector(kind === "home" ? "div.is-home" : VH.LAYOUT_ROOT);
-    if (!root) return;
+    if (!root) return ready();
     html.classList.add("vh-wide");
     // 登入視窗的封面牆（initLoginArt 在下面）。常數放這裡：下一行就會用到，而且認不得的頁面會在 kind 那裡 return
     const LOGIN_KEY = "vh:loginCovers";
     const LOGIN_MIN = 6;
     const COVER_T = /https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg/g;
     initLoginArt();
-    if (!kind) return;
+    if (!kind) return ready();
     html.dataset.vhKind = kind;         // 廣告這類跟改版開關無關的規則用它認頁面
 
     // 會改 DOM 結構的設定只在載入時讀一次，popup 改了要重新整理（settings.js 的 RELOAD）
@@ -636,9 +638,15 @@
         const tryBuild = async () => {
             if (busy || panel.dataset.vhArt || !open()) return;
             busy = true;
-            const covers = await loginCovers();
-            busy = false;
+            // 等封面時先藏面板（遮罩照常），好了直接以雙欄出現；要抓首頁時最多等 1.2 秒，
+            // 超過就先顯示單欄，封面晚到再補上
+            panel.classList.add("vh-art-wait");
+            const unveil = setTimeout(() => panel.classList.remove("vh-art-wait"), 1200);
+            const covers = await loginCovers().catch(() => []);
+            clearTimeout(unveil);
             if (covers.length >= LOGIN_MIN && !panel.dataset.vhArt) buildLoginArt(panel, covers);
+            panel.classList.remove("vh-art-wait");
+            busy = false;
         };
         // x-show 開關寫的是 inline display，盯 style 屬性
         new MutationObserver(tryBuild).observe(modal, { attributes: true, attributeFilter: ["style"] });
@@ -765,6 +773,7 @@
 
     applySettings();
     refresh();
+    ready();                    // class、工具列、分頁列都已就位，才放出來
     VHS.subscribe(() => {
         applySettings();
         initReveal();                           // 捲動進場剛被打開時，從現在起的卡片開始標

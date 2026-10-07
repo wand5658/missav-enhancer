@@ -8,6 +8,25 @@
  * 不寫被 x-show 控制的元素的 display：Alpine 靠 inline display 開關它們，
  * 這裡一蓋就跟它搶同一個屬性（CLAUDE.md 的登入 modal 事件）。 */
 
+/* 防閃：這份 CSS 一開始就注入，但規則都掛在 browse.js 加的 class 底下，那要等 document_end 讀完設定。
+ * 網站的 HTML 邊解析邊畫，中間會先露出原本的樣式一下（類型頁最明顯：底板、格子整個換掉）。
+ * 所以 browse.js 標上 vh-ready 前先把 layout root 藏起來（只動 opacity，頁首照常顯示），之後淡入。
+ * 腳本出錯、或沒跑到標 vh-ready 的地方，1.5 秒後自己顯示，不會整頁空白 */
+html:not(.vh-ready) :is(div.content-without-search, div.content-with-search, div.is-home),
+html:not(.vh-ready) div[x-show="showModal.login"] > div {
+    opacity: 0;
+    animation: vh-unveil 0s 1.5s forwards;
+}
+/* 登入視窗：需要登入的頁面一載入 Alpine 就自己打開，可能早於 browse.js，所以上面一起藏（裡面那層，不是 x-show 那層）。
+ * 打開後要等封面牆時（browse.js 加 vh-art-wait，最多 1.2 秒）只藏面板、遮罩照常，好了直接以雙欄出現，不會先單欄再跳 */
+html.vh-wide div[x-show="showModal.login"] > div > div.inline-block.vh-art-wait { opacity: 0; }
+html.vh-wide:not(.vh-reduce) div[x-show="showModal.login"] > div > div.inline-block { transition: opacity .2s ease-out; }
+@keyframes vh-unveil { to { opacity: 1; } }
+html.vh-ready:not(.vh-reduce) :is(div.content-without-search, div.content-with-search, div.is-home) {
+    animation: vh-fade-in .18s ease-out;
+}
+@keyframes vh-fade-in { from { opacity: 0; } }
+
 html.vh-wide {
     --vh-gutter: clamp(16px, 4vw, 60px);
     --vh-zoom: 1.3;             /* hover 放大倍率；browse.js 的 ZOOM 要一起改 */
