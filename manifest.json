@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MissAV Enhancer - Anti Auto-Pause & Restyle",
   "short_name": "MissAV Enhancer",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Stops the page from auto-pausing playback when the window or tab loses focus, and restyles the site: edge-to-edge layout, cover carousel, scrolling rows, one-click filter and sort, and a theater-style video page. Every feature can be tuned from the toolbar popup.",
   "icons": {
     "16": "icons/icon-16.png",
