@@ -115,6 +115,27 @@ html.vh-video .order-last[data-vh-section] [data-vh-row] > div.flex {
     html.vh-video:not(.vh-reduce) .order-last[data-vh-section] [data-vh-row] > div.flex:hover > div.flex-1 { padding: 8px 8px 4px; }
 }
 
+/* hover 高畫質快剪（browse.js）：疊在站台的 video.preview 上，出畫面才蓋上去，跟輪播一樣只顯示正在播的那個 */
+html.vh-wide .vh-hdp {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #000;
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+html.vh-wide .vh-hdp[data-live="1"] { opacity: 1; }
+html.vh-wide .vh-hdp video.mv {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+}
+html.vh-wide .vh-hdp video.mv[data-on] { opacity: 1; }
+
 /* 標題從一行截斷改成兩行；固定兩行高，同一列的卡片才對得齊 */
 html.vh-home .thumbnail .my-2.truncate,
 html.vh-list .thumbnail .my-2.truncate,

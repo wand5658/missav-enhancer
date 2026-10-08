@@ -55,14 +55,48 @@ globalThis.VHD = (() => {
     }
 
     // ── 快取 ──────────────────────────────────────────────────
+    // storage.local 沒有 unlimitedStorage 是 10 MB，滿了 set 會靜默失敗、每部都重新 fetch。
+    // t 是最後使用時間（命中時超過一天才更新，省寫入），超過 PRUNE_AT 就從最舊的刪到 PRUNE_TO
+    const PRUNE_AT = 8 * 2 ** 20, PRUNE_TO = 6 * 2 ** 20;
+    const TOUCH_MS = 864e5;
+    let pruned = false;
+
     const getCache = id => new Promise(res => {
         if (!local) return res(null);
         local.get(KEY(id), o => {
             const e = o?.[KEY(id)];
-            res(e && e.v === VER ? e : null);
+            if (!e || e.v !== VER) return res(null);
+            if (!(Date.now() - e.t < TOUCH_MS)) putCache(id, e);
+            res(e);
         });
     });
-    const putCache = (id, e) => local?.set({ [KEY(id)]: { ...e, v: VER, t: Date.now() } });
+    const putCache = (id, e) => {
+        if (!local) return;
+        local.set({ [KEY(id)]: { ...e, v: VER, t: Date.now() } })
+            .then(() => prune(), () => prune(true))
+            .catch(err => log("prune error", err));
+    };
+
+    // 每頁最多一次（寫入失敗時強制再一次）；舊 VER 的一律刪
+    async function prune(force = false) {
+        if (pruned && !force) return;
+        pruned = true;
+        if (await local.getBytesInUse(null) < PRUNE_AT && !force) return;
+        const all = await local.get(null);
+        const size = k => k.length + JSON.stringify(all[k]).length;
+        let bytes = Object.keys(all).reduce((s, k) => s + size(k), 0);
+        const hd = Object.keys(all).filter(k => k.startsWith("hd:"))
+            .sort((a, b) => (all[a].v === VER) - (all[b].v === VER) || (all[a].t || 0) - (all[b].t || 0));
+        const drop = [];
+        for (const k of hd) {
+            if (bytes <= PRUNE_TO && all[k].v === VER) break;
+            drop.push(k);
+            bytes -= size(k);
+        }
+        if (!drop.length) return;
+        await local.remove(drop);
+        log("prune", drop.length, `剩 ${hd.length - drop.length} 筆`);
+    }
 
     // 影片頁：自己的 HTML 就有，讀進快取（不挑起點，等輪播用到再挑）
     function harvest() {
@@ -229,6 +263,13 @@ globalThis.VHD = (() => {
         return job;
     }
 
+    // 只看快取、不 fetch（卡片 hover 用）：還沒挑過片段的用 even 位置，但不寫回
+    async function peek(id) {
+        const e = await getCache(id);
+        if (!e?.u || !e.d) return null;
+        return Array.isArray(e.c) ? e : { ...e, c: EVEN_AT.map(f => Math.round(e.d * f)) };
+    }
+
     // 畫質：auto 依畫框實際像素寬挑，畫框最寬 800 CSS px，DPR 1 時 480p 就接近原生
     function quality(frameWidth) {
         const q = globalThis.VHS?.get("heroHDQuality") || "auto";
@@ -333,5 +374,5 @@ globalThis.VHD = (() => {
 
     if (globalThis.VH?.kind?.() === "video") harvest();
 
-    return { resolve, quality, montage, stats, parse };
+    return { resolve, peek, quality, montage, stats, parse };
 })();

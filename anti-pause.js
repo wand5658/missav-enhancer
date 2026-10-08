@@ -55,7 +55,11 @@
         configurable: true,
         enumerable: true,
         get: () => instance,
-        set: value => { instance = patch(value); }
+        set: value => {
+            instance = patch(value);
+            // 給 health.js 檢查：攔到了、而且包住了 pause()（站台改版改掉 player 或 pause 時會是 no-pause）
+            if (value) document.documentElement.dataset.vhAp = instance?.__antiPausePatched ? "hooked" : "no-pause";
+        }
     });
 
     // 保底防線：萬一有程式繞過 window.player 直接對 <video> 呼叫 pause()，
