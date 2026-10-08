@@ -36,6 +36,12 @@ body:
     validations:
       required: true
   - type: textarea
+    id: diag
+    attributes:
+      label: Diagnostics / 診斷資訊
+      description: Filled in automatically by the popup's “Report” button; otherwise click “Copy info” in the popup on the broken page and paste here. It contains no video codes or names. / 從設定面板按「回報問題」會自動填入；否則在出問題的頁面打開設定面板，按「複製診斷」貼上。不含番號或名稱。
+      render: text
+  - type: textarea
     id: console
     attributes:
       label: Console errors / Console 錯誤訊息

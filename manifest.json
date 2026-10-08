@@ -47,7 +47,8 @@
         "pages.js",
         "hd.js",
         "hero.js",
-        "browse.js"
+        "browse.js",
+        "health.js"
       ],
       "css": [
         "browse.css"

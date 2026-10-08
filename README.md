@@ -61,6 +61,7 @@ Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is i
 
 ## Privacy
 
+- The extension sends nothing anywhere by itself; the diagnostics above leave only when you click **Report** or paste them.
 - The only permission is `storage`, used for your settings (`chrome.storage.sync`) and a local cache (`chrome.storage.local`): for HD previews, each video's stream address and picked clips; for the login dialog, a list of cover thumbnail addresses.
 - Host access is limited to `missav.ai` and `missav.ws`.
 - There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. When the login dialog opens on a page without video cards, it requests the site's home page (or its latest-videos list) once to pick covers for the dialog's cover wall, and keeps that list locally for a day. Hovering a card whose stream is already cached (*HD card previews*) streams it from the same CDN. Turn both HD options off and, apart from the login covers, it makes no requests of its own.
@@ -74,7 +75,9 @@ If a new official domain shows up, an issue or PR is welcome.
 
 ## When it stops working
 
-The extension depends on the site's internal markup and its `player` global. When the site changes either, features stop working silently. Please [open an issue](../../issues/new/choose) with the domain, the page type (home / list / video) and your Chrome version.
+The extension depends on the site's internal markup and its `player` global. When the site changes either, features stop working without any error. To catch that, the extension checks each page a few seconds after it loads: if a feature that is switched on left no trace (no carousel although the page has video cards, filter dropdowns that were not turned into chips, the player not intercepted, and so on), the popup shows **⚠ N features not applied here** with the list, and the Console prints a warning.
+
+To report it, open the popup on the broken page and click **Report**: it opens a [GitHub issue](../../issues/new/choose) with the diagnostics already filled in (and copies them, in case you would rather paste them elsewhere; **Copy info** does only that). The diagnostics hold the extension and Chrome versions, the page type and the shape of its address (`/dm<n>/actresses/<…>` — no video codes, names or search words), which checks failed, the settings you changed and the HD preview request counts.
 
 ## How it works
 
@@ -90,6 +93,7 @@ The restyle is plain CSS scoped under classes on `<html>`, plus scripts that mar
 | `hd.js` | isolated | `document_end` | HD previews: finds the stream, picks clips, plays the montage |
 | `hero.js` | isolated | `document_end` | Cover carousel |
 | `browse.js` + `browse.css` | isolated | `document_end` | Layout, rows, list toolbar and pagination, video page, scroll reveal |
+| `health.js` | isolated | `document_end` | Checks that each feature took effect; answers the popup's diagnostics |
 | `popup.html` / `.css` / `.js` | — | — | Settings popup |
 
 ## License

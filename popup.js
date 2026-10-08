@@ -12,6 +12,10 @@
             saved: "已套用", resetDone: "已恢復預設", imported: "已匯入", importBad: "檔案格式不對",
             atLeastOne: "至少要選一個", reloadTag: "重新整理後生效",
             sec: "秒",
+            healthOk: "此頁功能都正常", healthMiss: n => `此頁有 ${n} 項沒有套用`,
+            healthNone: "重新整理分頁後才能檢查",
+            copyDiag: "複製診斷", report: "回報問題", copied: "已複製診斷資訊",
+            reportCopied: "已複製診斷資訊，也填進回報表單了",
         },
         en: {
             applied: "Active", notApplied: "Not on this tab",
@@ -20,6 +24,10 @@
             saved: "Applied", resetDone: "Reset to defaults", imported: "Imported", importBad: "Not a valid settings file",
             atLeastOne: "Pick at least one", reloadTag: "after reload",
             sec: "s",
+            healthOk: "Everything works on this page", healthMiss: n => `${n} feature${n > 1 ? "s" : ""} not applied here`,
+            healthNone: "Reload the tab to check it",
+            copyDiag: "Copy info", report: "Report", copied: "Diagnostics copied",
+            reportCopied: "Diagnostics copied and added to the report form",
         },
     };
     const lang = () => {
@@ -27,7 +35,7 @@
         if (l === "zh" || l === "en") return l;
         return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
     };
-    const t = k => T[lang()][k];
+    const t = (k, ...a) => { const v = T[lang()][k]; return typeof v === "function" ? v(...a) : v; };
     const L = pair => pair[lang()] ?? pair.zh;     // { zh, en } → 目前語言
 
     // ── 項目描述 ──────────────────────────────────────────────
@@ -175,6 +183,7 @@
         $("reloadBtn").textContent = t("reloadBtn");
         $("reload").hidden = !reloadNeeded;
         renderSite();
+        renderHealth();
         if (refocus) body.querySelector(refocus)?.focus();
     }
 
@@ -285,7 +294,66 @@
         $("reload").hidden = true;
     });
 
+    // ── 站台改版偵測（health.js）────────────────────────────
+    // 跟分頁裡的 health.js 要檢查結果；分頁是擴充功能裝好（或重新載入）之前開的，就沒有人回應
+    const MISS = {
+        root: o(0, "頁面版面", "Page layout"),
+        ready: o(0, "改版樣式沒有跑完", "Restyle did not finish"),
+        hero: o(0, "封面輪播", "Cover carousel"),
+        rows: o(0, "首頁橫向捲動列", "Home page rows"),
+        chips: o(0, "列表頁篩選按鈕", "List filter chips"),
+        pager: o(0, "列表頁分頁列", "List pagination"),
+        antiPause: o(0, "防止自動暫停", "Anti auto-pause"),
+        sidebar: o(0, "影片頁「接著看」", "Video page “Up next” row"),
+        player: o(0, "劇院模式播放器尺寸", "Theater player size"),
+        cover: o(0, "環境光封面", "Ambient light cover"),
+        cardTitle: o(0, "影片卡標題", "Video card titles"),
+        hdBlocked: o(0, "高畫質預覽被網站擋下", "HD previews blocked by the site"),
+    };
+    let health = null;              // { kind, miss, report } 或 null（沒回應）
+    function renderHealth() {
+        const on = Boolean(activeTab?.url && SITE.test(activeTab.url));
+        $("health").hidden = !on;
+        if (!on) return;
+        const miss = health?.miss || [];
+        $("health").classList.toggle("bad", miss.length > 0);
+        $("healthText").textContent = !health ? t("healthNone") : miss.length ? `⚠ ${t("healthMiss", miss.length)}` : `✓ ${t("healthOk")}`;
+        $("healthList").innerHTML = miss.map(m => `<li>${esc(MISS[m.code] ? L(MISS[m.code]) : m.code)}</li>`).join("");
+        $("copyDiag").textContent = t("copyDiag");
+        $("reportBtn").textContent = t("report");
+        $("copyDiag").hidden = !health;
+    }
+    // 分頁沒回應時也能回報，只是少了頁面那幾行
+    function diagText() {
+        if (health) return health.report;
+        const m = chrome.runtime.getManifest();
+        return `${m.name} ${m.version} · Chrome ${/Chrome\/(\d+)/.exec(navigator.userAgent)?.[1] || "?"}\nPage: no response from the tab`;
+    }
+    const copy = text => navigator.clipboard.writeText(text).catch(() => {});
+    $("copyDiag").addEventListener("click", async () => {
+        await copy(diagText());
+        toast(t("copied"));
+    });
+    // GitHub issue form 可以用網址參數預填欄位（參數名 = 欄位 id）
+    const ISSUES = "https://github.com/wand5658/missav-enhancer/issues/new";
+    $("reportBtn").addEventListener("click", async () => {
+        const diag = diagText();
+        await copy(diag);
+        const q = new URLSearchParams({
+            template: "bug.yml",
+            domain: activeTab?.url ? new URL(activeTab.url).host : "",
+            versions: diag.split("\n")[0],
+            diag,
+        });
+        chrome.tabs.create({ url: `${ISSUES}?${q}` });
+        toast(t("reportCopied"));
+    });
+
     $("ver").textContent = `v${chrome.runtime.getManifest().version}`;
     [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     render();
+    if (activeTab?.url && SITE.test(activeTab.url)) {
+        health = await chrome.tabs.sendMessage(activeTab.id, { type: "vh:health" }).catch(() => null);
+        renderHealth();
+    }
 })();
