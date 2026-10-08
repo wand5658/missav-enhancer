@@ -94,6 +94,8 @@
             { type: "sw", key: "breathe", label: o(0, "光暈呼吸", "Breathing glow") },
             { type: "range", key: "washAlpha", label: o(0, "全頁背景染色", "Page tint"), min: 0, max: 100, step: 5, unit: "%", pct: true },
             { type: "sw", key: "glass", label: o(0, "玻璃面板", "Glass panels") },
+            { type: "sw", key: "hoverHD", label: o(0, "卡片預覽用高畫質", "HD card previews"),
+              hint: o(0, "只用輪播或影片頁已經拿到的資料，不額外連網站；沒有就播原本的預覽", "Only for videos the carousel or a video page already found; others keep the normal preview") },
             { type: "sw", key: "reveal", label: o(0, "捲動時卡片依序浮出", "Cards fade up on scroll") },
             { type: "range", key: "revealGap", label: o(0, "浮出間隔", "Stagger"), min: 0, max: 300, step: 10, unit: "ms" },
             { type: "range", key: "revealMs", label: o(0, "浮出長度", "Duration"), min: 200, max: 1500, step: 50, unit: "ms" },

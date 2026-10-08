@@ -490,6 +490,49 @@
             r.right + grow > right ? "right center" : "";
     });
 
+    // ── 卡片：hover 改播高畫質快剪 ────────────────────────────
+    // 只用 hd.js 快取裡已經有串流網址的（輪播播過、或看過的影片頁），不 fetch 影片頁，所以不多碰 Cloudflare。
+    // 疊一層 div.vh-hdp 在站台的 video.preview 上面，站台自己的預覽照常播在底下：
+    // 高畫質出畫面（data-live）才蓋上去，載不到就拿掉這層，等於沒發生過。同時只開一張卡（兩條 HLS）
+    const HOVER_DELAY = 300;                // 跟 CSS 放大的延遲差不多，掃過去的卡不開串流
+    const HOVER_LIMIT = 4000;               // 這麼久還沒出畫面就放棄
+    let hov = null;                         // { card, timer, box, mont }
+    function hoverStop() {
+        if (!hov) return;
+        clearTimeout(hov.timer);
+        hov.mont?.stop();
+        hov.box?.remove();
+        hov = null;
+    }
+    root.addEventListener("pointerover", e => {
+        const card = e.target.closest?.(".thumbnail");
+        if (!card || hov?.card === card) return;
+        hoverStop();
+        if (!VHS.on("hoverHD") || !globalThis.VHD) return;
+        const video = card.querySelector("video.preview");
+        const id = /\/([^/]+)\/preview\.mp4$/.exec(video?.getAttribute("data-src") || video?.getAttribute("src") || "")?.[1];
+        if (!id) return;
+        const h = hov = { card };
+        h.timer = setTimeout(async () => {
+            const entry = await VHD.peek(id);
+            if (hov !== h || !entry || !video.isConnected) return;
+            const box = h.box = document.createElement("div");
+            box.className = "vh-hdp";
+            const z = getComputedStyle(video).zIndex;
+            if (z !== "auto") box.style.zIndex = z;
+            video.after(box);
+            const w = card.getBoundingClientRect().width * Math.max(1, VHS.get("homeZoom"));
+            h.mont = VHD.montage(box, entry, VHD.quality(w), () => {
+                if (hov === h) { box.remove(); h.box = h.mont = null; }
+            }, HOVER_LIMIT);
+            h.mont.play().catch(() => {});
+        }, HOVER_DELAY);
+    });
+    root.addEventListener("pointerout", e => {
+        if (hov && !hov.card.contains(e.relatedTarget)) hoverStop();
+    });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) hoverStop(); });
+
     // ── 卡片：一張只停一次 Tab ────────────────────────────────
     // 每張卡有封面、徽章、片長、標題好幾個連結，全部指向同一頁。只留標題那個
     // （影片頁側欄的標題在 .thumbnail 外面，要等 initRows 標好橫列才找得到，所以 refresh 先跑 initRows）
@@ -776,6 +819,7 @@
     ready();                    // class、工具列、分頁列都已就位，才放出來
     VHS.subscribe(() => {
         applySettings();
+        if (!VHS.on("hoverHD")) hoverStop();
         initReveal();                           // 捲動進場剛被打開時，從現在起的卡片開始標
         if (kind !== "video") placeHero();      // 輪播開關、高度會改 hero 的尺寸
         layoutRows();

@@ -46,6 +46,7 @@ globalThis.VHS = (() => {
         breathe: true,
         washAlpha: 0.55,
         glass: true,
+        hoverHD: true,              // 卡片 hover 播高畫質快剪：只用 hd.js 快取裡有的，不 fetch
         reveal: true,
         revealGap: 150,
         revealMs: 800,
@@ -61,7 +62,7 @@ globalThis.VHS = (() => {
         home: ["homeRows", "homePer", "homeZoom", "homeHideSearch"],
         list: ["listChips", "listPager", "listCols"],
         video: ["videoTheater", "videoGap", "videoHidePromo"],
-        look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "reveal", "revealGap", "revealMs"],
+        look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "hoverHD", "reveal", "revealGap", "revealMs"],
         ads: ["hideAds"],
     };
     const MASTER = {};

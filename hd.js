@@ -263,6 +263,13 @@ globalThis.VHD = (() => {
         return job;
     }
 
+    // 只看快取、不 fetch（卡片 hover 用）：還沒挑過片段的用 even 位置，但不寫回
+    async function peek(id) {
+        const e = await getCache(id);
+        if (!e?.u || !e.d) return null;
+        return Array.isArray(e.c) ? e : { ...e, c: EVEN_AT.map(f => Math.round(e.d * f)) };
+    }
+
     // 畫質：auto 依畫框實際像素寬挑，畫框最寬 800 CSS px，DPR 1 時 480p 就接近原生
     function quality(frameWidth) {
         const q = globalThis.VHS?.get("heroHDQuality") || "auto";
@@ -367,5 +374,5 @@ globalThis.VHD = (() => {
 
     if (globalThis.VH?.kind?.() === "video") harvest();
 
-    return { resolve, quality, montage, stats, parse };
+    return { resolve, peek, quality, montage, stats, parse };
 })();
