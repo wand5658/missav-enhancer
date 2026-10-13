@@ -2,6 +2,8 @@
 
 **English** | [繁體中文](README.zh-TW.md)
 
+> **中文使用者**：MissAV 一切到別的分頁或視窗，影片就自動暫停？這個 Chrome 擴充功能讓影片在背景繼續播放，同時去除廣告，並把介面改成封面輪播、Netflix 式橫列與劇院模式。支援 missav.ai／missav.ws。→ [繁體中文說明與安裝方式](README.zh-TW.md)
+
 An unofficial Chrome extension (Manifest V3) for **missav.ai** and **missav.ws**. It stops videos from pausing when you switch to another tab or window, and restyles the site for easier browsing. Every feature can be switched and tuned from a toolbar popup.
 
 Not affiliated with the site. No data collection, no remote requests — see [Privacy](#privacy).
