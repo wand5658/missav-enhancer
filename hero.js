@@ -251,7 +251,7 @@
                 s._mont = null;
                 s._hdLive = false;
                 sync();
-            }, Infinity, () => {
+            }, () => {
                 // preview.mp4 已經在播、這張又快換了，換過去只會閃一下
                 if (s !== current() || s._pvLive && remainingMs() < HD_LATE_MS) {
                     console.debug("[hd] slide", item.id, "skip(late)", ms());

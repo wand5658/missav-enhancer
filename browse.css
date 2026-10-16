@@ -123,7 +123,7 @@ html.vh-wide .vh-hdp {
     pointer-events: none;
     background: #000;
     opacity: 0;
-    transition: opacity .2s ease;
+    transition: opacity .3s ease;     /* 跟輪播 preview → 高畫質的淡入一樣（hero.js 的 HD_FADE_MS） */
 }
 html.vh-wide .vh-hdp[data-live="1"] { opacity: 1; }
 html.vh-wide .vh-hdp video.mv {

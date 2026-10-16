@@ -281,10 +281,9 @@ globalThis.VHD = (() => {
 
     // 快剪播放器：在 frame 裡放兩個 <video class="mv">，播的那個帶 data-on（hero.js 的 CSS 只顯示它）。
     // 介面跟 <video> 一樣有 play() / pause()，另加 stop()；任一個載入失敗就收掉並呼叫 onFail。
-    // 串流卡住不一定會報錯（m3u8 或分段一直載不動、seek 不結束），所以播放中累計 limitMs 還沒出畫面也算失敗；
-    // 暫停（分頁在背景、hero 捲出畫面）的時間不算。
+    // 沒有時間上限：輪播和 hover 底下都有原本的預覽在播，等多久都不影響畫面，換張 / 移開時由呼叫端 stop()。
     // onLive：第一段要出畫面前呼叫，回傳 false 就不出畫面、直接收掉（不算失敗，不呼叫 onFail）
-    function montage(frame, e, q, onFail, limitMs = Infinity, onLive = null) {
+    function montage(frame, e, q, onFail, onLive = null) {
         const clips = e.c, n = clips.length;
         // 第二個 video 等第一段出畫面才開始載：起播時兩條串流搶頻寬，第一段要慢上一兩秒
         const mk = load => {
@@ -299,14 +298,8 @@ globalThis.VHD = (() => {
             return v;
         };
         let a = 0, i = 0, timer = 0, dead = false;
-        let live = false, waited = 0, since = 0, watch = 0;
+        let live = false;
         const born = performance.now();
-        const unwatch = () => {
-            clearTimeout(watch);
-            watch = 0;
-            if (since) waited += performance.now() - since;
-            since = 0;
-        };
         const seekTo = (v, t) => {
             if (v.readyState >= 1) v.currentTime = t;
             else v.addEventListener("loadedmetadata", () => { v.currentTime = t; }, { once: true });
@@ -325,7 +318,6 @@ globalThis.VHD = (() => {
                 cur.setAttribute("data-on", "");
                 frame.dataset.live = "1";
                 live = true;
-                unwatch();
                 vs[1].src = src(e, q);
                 seekTo(vs[1], clips[1 % n]);
             }
@@ -340,15 +332,14 @@ globalThis.VHD = (() => {
             i = (i + 1) % n;
             seekTo(cur, clips[(i + 1) % n]);    // 換下來的那個先去等再下一段
         }
-        function fail(why) {
+        function fail() {
             if (dead) return;
-            log(why === "stall" ? "stream stall" : "stream error", e.u, `${Math.round(performance.now() - born)}ms`, live ? "(after live)" : "");
+            log("stream error", e.u, `${Math.round(performance.now() - born)}ms`, live ? "(after live)" : "");
             stop();
             onFail();
         }
         function stop() {
             dead = true;
-            unwatch();
             clearInterval(timer);
             for (const v of vs) {
                 v.pause();
@@ -361,10 +352,6 @@ globalThis.VHD = (() => {
             play() {
                 if (dead) return Promise.resolve();
                 if (!timer) timer = setInterval(tick, 50);
-                if (!live && !watch && limitMs < Infinity) {
-                    since = performance.now();
-                    watch = setTimeout(() => { unwatch(); fail("stall"); }, Math.max(0, limitMs - waited));
-                }
                 return vs[a].play();
             },
             // 除錯用：兩個 video 現在的狀態（目標起點、播放位置、readyState、已緩衝的範圍）
@@ -376,7 +363,6 @@ globalThis.VHD = (() => {
                 }));
             },
             pause() {
-                unwatch();
                 clearInterval(timer);
                 timer = 0;
                 vs[a].pause();

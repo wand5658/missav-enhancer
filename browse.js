@@ -493,9 +493,9 @@
     // ── 卡片：hover 改播高畫質快剪 ────────────────────────────
     // 只用 hd.js 快取裡已經有串流網址的（輪播播過、或看過的影片頁），不 fetch 影片頁，所以不多碰 Cloudflare。
     // 疊一層 div.vh-hdp 在站台的 video.preview 上面，站台自己的預覽照常播在底下：
-    // 高畫質出畫面（data-live）才蓋上去，載不到就拿掉這層，等於沒發生過。同時只開一張卡（兩條 HLS）
+    // 高畫質出畫面（data-live）才淡入蓋上去，載不到就拿掉這層，等於沒發生過；沒有時間上限，滑鼠移開就收掉。
+    // 同時只開一張卡（兩條 HLS）
     const HOVER_DELAY = 300;                // 跟 CSS 放大的延遲差不多，掃過去的卡不開串流
-    const HOVER_LIMIT = 4000;               // 這麼久還沒出畫面就放棄
     let hov = null;                         // { card, timer, box, mont }
     function hoverStop() {
         if (!hov) return;
@@ -524,7 +524,7 @@
             const w = card.getBoundingClientRect().width * Math.max(1, VHS.get("homeZoom"));
             h.mont = VHD.montage(box, entry, VHD.quality(w), () => {
                 if (hov === h) { box.remove(); h.box = h.mont = null; }
-            }, HOVER_LIMIT);
+            });
             h.mont.play().catch(() => {});
         }, HOVER_DELAY);
     });
