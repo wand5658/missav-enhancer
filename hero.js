@@ -35,7 +35,8 @@
     let busy = false;
     let host = null;
     let ui = null;
-    let paused = false;
+    let paused = false;             // 鍵盤焦點在裡面：只停進度條
+    let held = false;               // 使用者按了暫停鈕：只停進度條，預覽影片照播，再按一次繼續
     let off = false;
 
     // ── 讀卡片 ────────────────────────────────────────────────
@@ -115,6 +116,7 @@
   <div class="stage"></div>
   <button class="nav prev" type="button" aria-label="上一部">${chevron("M15 5l-7 7 7 7")}</button>
   <button class="nav next" type="button" aria-label="下一部">${chevron("M9 5l7 7-7 7")}</button>
+  <button class="hold" type="button" aria-pressed="false" aria-label="暫停輪播" title="暫停輪播">${icon("i-pause", "M8 5v14M16 5v14")}${icon("i-play", "M7 4.5v15l12.5-7.5z")}</button>
   <div class="ctl"><span class="count"></span></div>
   <div class="track"><div class="bar"></div></div>
 </section>`;
@@ -124,11 +126,21 @@
             stage: shadow.querySelector(".stage"),
             bar: shadow.querySelector(".bar"),
             count: shadow.querySelector(".count"),
+            hold: shadow.querySelector(".hold"),
         };
 
         ui.bar.addEventListener("animationend", () => show(1));
         shadow.querySelector(".prev").addEventListener("click", () => show(-1));
         shadow.querySelector(".next").addEventListener("click", () => show(1));
+        // 暫停鈕：停在這一張，上一部 / 下一部照樣能換（換過去也維持暫停）
+        ui.hold.addEventListener("click", () => {
+            held = !held;
+            ui.hold.setAttribute("aria-pressed", held);
+            const label = held ? "繼續輪播" : "暫停輪播";
+            ui.hold.setAttribute("aria-label", label);
+            ui.hold.title = label;
+            sync();
+        });
 
         // 滑鼠 hover 不暫停。只有鍵盤焦點在裡面時停進度條（預覽影片照播），不然 Tab 到「前往觀看」前就換片了。
         // 用 :focus-visible 判斷：滑鼠點上一部 / 下一部也會讓按鈕拿到焦點，那種不算
@@ -144,6 +156,10 @@
             off = e.intersectionRatio < MIN_VISIBLE;
             sync();
         }, { threshold: [MIN_VISIBLE] }).observe(hero);
+    }
+
+    function icon(cls, d) {
+        return `<svg class="${cls}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
     }
 
     function chevron(d) {
@@ -372,7 +388,7 @@
     // 所有暫停條件集中在這裡算，進度條和預覽影片各看各的
     function sync() {
         if (!ui) return;
-        ui.hero.dataset.paused = paused ? "1" : "0";
+        ui.hero.dataset.paused = paused || held ? "1" : "0";
         ui.hero.dataset.hidden = document.hidden ? "1" : "0";
         ui.hero.dataset.off = off ? "1" : "0";
 
@@ -627,6 +643,40 @@
     font-size: 11px;
     color: var(--ink-dim);
 }
+/* 暫停 / 繼續輪播：右上角（滿版時頁首疊在上面，往下讓開），右邊留給「下一部」那條；樣式跟「前往觀看」一樣是半透明框 */
+.hold {
+    position: absolute;
+    top: 16px;
+    right: 72px;
+    z-index: 2;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(236, 239, 244, .3);
+    border-radius: 50%;
+    color: var(--ink);
+    background: rgba(27, 30, 37, .35);
+    cursor: pointer;
+    opacity: 0;
+    transition: border-color .12s, background .12s, opacity .15s;
+}
+/* 平常藏著，滑鼠移進輪播才出現；暫停中、鍵盤焦點在上面、沒有滑鼠的裝置（觸控）一直顯示 */
+.hero:hover .hold,
+.hold:focus-visible,
+.hold[aria-pressed="true"] { opacity: 1; }
+@media (hover: none) { .hold { opacity: 1; } }
+.hold:hover { border-color: var(--focus); background: rgba(136, 192, 208, .18); }
+.hold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hold svg { width: 13px; height: 13px; }
+.hold .i-pause { fill: none; }
+.hold[aria-pressed="true"] .i-pause,
+.hold:not([aria-pressed="true"]) .i-play { display: none; }
+/* 暫停中：按鈕亮起來，進度條換成提示色，看得出不是卡住 */
+.hold[aria-pressed="true"] { border-color: var(--focus); }
+.hero:has(.hold[aria-pressed="true"]) .bar { background: var(--focus); }
+:host([data-bleed]) .hold { top: calc(16px + var(--vh-header, 0px)); }
 .track {
     position: absolute;
     left: 0;
@@ -657,7 +707,7 @@
     :host([data-bleed]) .link { padding-top: calc(20px + var(--vh-header, 0px)); }
     .link { flex-direction: column; align-items: stretch; gap: 16px; padding: 20px 48px 40px; }
     .frame { width: 100%; }
-    .ctl { right: 48px; }
+    .ctl, .hold { right: 48px; }
     .nav { width: 44px; }
     .nav svg { width: 26px; height: 26px; }
 }
@@ -669,6 +719,7 @@
 :host([data-reduce]) .slide *,
 :host([data-reduce]) .frame video,
 :host([data-reduce]) .nav,
+:host([data-reduce]) .hold,
 :host([data-reduce]) .open { transition: none !important; }
 :host([data-reduce]) .bg,
 :host([data-reduce]) .frame img,
