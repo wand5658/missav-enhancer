@@ -24,7 +24,8 @@
     const enabled = () => VHS.on("hero") && VHS.on(kind === "home" ? "heroHome" : "heroList");
     const POOL_MAX = 40;
     const hdOn = () => VHS.on("heroHD") && VHS.get("heroPreview");
-    const HD_MIN_PLAY_MS = 1000;    // 網址拿得慢時，串流起播至少給這麼久
+    const HD_LATE_MS = 1500;        // 這張剩不到這麼久才拿到高畫質就不換了，整張播 preview.mp4
+    const HD_FADE_MS = 300;         // preview.mp4 → 高畫質的淡入
     const MIN_VISIBLE = 0.5;        // hero 露出不到一半就整個暫停
 
     const pool = [];                // [{id, href, title, tags, cover, coverLo, preview}]
@@ -203,7 +204,7 @@
         video.playsInline = true;
         video.preload = "auto";
         // 真的開始播才蓋上去，載入中那段看到的是封面的推近，不是黑畫面
-        video.addEventListener("playing", () => { frame.dataset.live = "1"; });
+        video.addEventListener("playing", () => { frame.dataset.live = "1"; s._pvLive = true; });
         frame.append(img, video);
 
         const text = document.createElement("div");
@@ -225,38 +226,73 @@
         s._preview = item.preview;
         s._frame = frame;
         s._mont = null;                     // 高畫質的快剪播放器（hd.js 的 VHD.montage）
-        s._hdState = hdOn() ? "wait" : "none";
-        if (s._hdState === "wait") {
-            // 快取裡有的幾乎立刻好；沒有的要 fetch 影片頁、挑起點，等太久就先播 preview.mp4。
-            // 設定 heroHDWait 是整段的預算：拿到網址後串流起播也算在內，剩不到 HD_MIN_PLAY_MS 就給 HD_MIN_PLAY_MS
-            const t0 = performance.now();
-            const waitMs = VHS.get("heroHDWait") * 1000;
-            const done = (e, why) => {
-                if (s._hdState !== "wait") return;
-                console.debug("[hd] slide", item.id, e ? "hd" : `fallback(${why || "none"})`);
-                s._hdState = e ? "ready" : "none";
-                // 串流載不到（網址失效、網路）就退回 preview.mp4
-                if (e) s._mont = VHD.montage(frame, e, VHD.quality(frame.getBoundingClientRect().width), () => {
-                    s._mont = null;
-                    s._hdState = "none";
-                    sync();
-                }, Math.max(HD_MIN_PLAY_MS, waitMs - (performance.now() - t0)));
-                sync();
-            };
-            VHD.resolve(item, VHS.get("heroHDPick")).then(done);
-            setTimeout(() => done(null, "timeout"), waitMs);
-        }
+        s._hdLive = false;                  // 高畫質已經出畫面，preview.mp4 停掉
+        s._pvLive = false;                  // preview.mp4 出過畫面
+        if (hdOn()) startHD(s, item, frame);
         return s;
     }
 
-    function stopVideo(s) {
-        s._mont?.stop();
+    // 高畫質在背景準備，preview.mp4 照播；高畫質第一段出畫面時淡入蓋上去，再停掉 preview.mp4。
+    // 沒有時間上限：這張換掉時 stopVideo() 會一起收掉。
+    // 不先停在封面等：就算網址早就拿到（快取），串流起播也要 2～4 秒（2026-10 量的），等也等不到
+    function startHD(s, item, frame) {
+        const t0 = performance.now();
+        const ms = () => `${Math.round(performance.now() - t0)}ms`;
+        s._hdWhy = () => `${item.id} ${ms()}`;    // 除錯：stopVideo() 印沒出畫面的原因用
+
+        VHD.resolve(item, VHS.get("heroHDPick")).then(e => {
+            const ok = e && s === current() && remainingMs() > HD_LATE_MS;
+            console.debug("[hd] slide", item.id, ok ? "hd" : e ? "skip(late)" : "fallback", ms());
+            if (!ok) return;
+            frame.dataset.xfade = "";
+            s._mont = VHD.montage(frame, e, VHD.quality(frame.getBoundingClientRect().width), () => {
+                // 串流載不到（網址失效、網路）就繼續 / 改回 preview.mp4
+                delete frame.dataset.xfade;
+                s._mont = null;
+                s._hdLive = false;
+                sync();
+            }, Infinity, () => {
+                // preview.mp4 已經在播、這張又快換了，換過去只會閃一下
+                if (s !== current() || s._pvLive && remainingMs() < HD_LATE_MS) {
+                    console.debug("[hd] slide", item.id, "skip(late)", ms());
+                    delete frame.dataset.xfade;
+                    s._mont = null;
+                    return false;
+                }
+                s._hdLive = true;
+                console.debug("[hd] slide", item.id, "live", s._pvLive ? "(from preview)" : "(from cover)", ms());
+                setTimeout(() => {
+                    delete frame.dataset.xfade;     // 之後的換段照樣硬切
+                    if (s._hdLive) stopPreview(s);
+                }, HD_FADE_MS + 50);
+            });
+            sync();
+        });
+    }
+
+    // 進度條動畫就是這張的時鐘
+    function remainingMs() {
+        const a = ui?.bar.getAnimations()[0];
+        const d = a?.effect.getComputedTiming().duration;
+        return typeof d === "number" ? d - (a.currentTime ?? 0) : Infinity;
+    }
+
+    function stopPreview(s) {
         const v = s._video;
         if (!v) return;
         v.pause();
         // 拿掉 src 才會真的中斷下載
         v.removeAttribute("src");
         v.load();
+    }
+
+    function stopVideo(s) {
+        // 除錯：整張播完高畫質都沒出畫面，印出兩個 video 卡在哪
+        if (s._mont && !s._hdLive)
+            console.debug("[hd] slide", s._hdWhy(), "never live", s._pvLive ? "(preview playing)" : "(cover)", JSON.stringify(s._mont.state()));
+        s._mont?.stop();
+        s._mont = null;
+        stopPreview(s);
     }
 
     async function show(step) {
@@ -343,15 +379,18 @@
         const s = current();
         const v = s?._video;
         if (!v) return;
-        const p = s._mont || v;             // 高畫質快剪或原本的 preview.mp4，play / pause 介面一樣
+        const m = s._mont;                  // 高畫質快剪，play / pause 介面跟 <video> 一樣
         // 預覽影片設定關掉時連載都不載，只看封面
         if (document.hidden || off || VHS.reduced() || !enabled() || !VHS.get("heroPreview")) {
-            p.pause();
+            m?.pause();
+            v.pause();
             return;
         }
-        if (s._hdState === "wait") return;      // 高畫質還在準備，先停在封面
-        if (!s._mont && !v.getAttribute("src")) v.src = s._preview;
-        p.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
+        // 高畫質還沒出畫面時兩個一起播：快剪要在播放中才會載入、切段
+        m?.play().catch(() => {});
+        if (s._hdLive) return;
+        if (!v.getAttribute("src")) v.src = s._preview;
+        v.play().catch(() => { /* 被瀏覽器擋就停在封面 */ });
     }
 
     // ── 樣式（Shadow DOM 內，跟站台的 Tailwind 互不影響）────────
@@ -507,6 +546,8 @@
 /* 高畫質快剪（hd.js 的 montage）：兩個 video 輪流，只顯示正在播的那個（data-on），硬切不淡入淡出 */
 .frame video.mv { opacity: 0; transition: none; }
 .frame[data-live="1"] video.mv[data-on] { opacity: 1; }
+/* 第一段出畫面時淡入（蓋過 preview.mp4 或封面），hero.js 淡完就拿掉 data-xfade */
+.frame[data-xfade] video.mv { transition: opacity ${HD_FADE_MS}ms ease; }
 .frame::after {
     content: '';
     position: absolute;
