@@ -225,6 +225,13 @@ html.vh-home [data-vh-section] a.text-nord4:hover {
     margin: calc(-1 * var(--lift)) calc(-1 * var(--vh-bleed, 0px)) calc(-1 * var(--lift)) calc(-1 * var(--lead));
 }
 :is(html.vh-home, html.vh-video) [data-vh-row]::-webkit-scrollbar { display: none; }
+/* 按住左鍵拖曳中（browse.js 的 dragScroll）：吸附要關，不然每一幀都被拉回卡片邊緣 */
+:is(html.vh-home, html.vh-video) [data-vh-row].vh-dragging {
+    scroll-snap-type: none;
+    cursor: grabbing;
+    user-select: none;
+}
+:is(html.vh-home, html.vh-video) [data-vh-row].vh-dragging * { cursor: grabbing; }
 :is(html.vh-home, html.vh-video) [data-vh-row] > * {
     flex: 0 0 calc((100% - (var(--per) - 1) * var(--gap)) / var(--per));
     min-width: 0;

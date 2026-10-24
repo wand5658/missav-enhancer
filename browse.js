@@ -158,8 +158,85 @@
                 a?.focus({ preventScroll: true });
                 to.scrollIntoView({ inline: "nearest", block: "nearest", behavior: reduced() ? "auto" : "smooth" });
             });
+
+            dragScroll(grid);
         });
         layoutRows();
+    }
+
+    // 按住滑鼠左鍵左右拖曳橫列。移動超過 DRAG_PX 才算拖曳，之前都是一般點擊；
+    // 拖曳中關掉吸附（不然每一幀都被拉回卡片邊緣），放開後依甩動速度滑到最近的卡片，滑完再開回吸附
+    const DRAG_PX = 6;
+    function dragScroll(grid) {
+        let start = null;           // { id, x, left }
+        let dragging = false;
+        let samples = [];           // 最近的 [時間, x]，算放開時的速度
+
+        grid.addEventListener("pointerdown", e => {
+            if (e.pointerType !== "mouse" || e.button !== 0 || !VHS.on("rowDrag")) return;
+            if (e.target.closest("input, textarea, select, button")) return;
+            start = { id: e.pointerId, x: e.clientX, left: grid.scrollLeft };
+            dragging = false;
+            samples = [[e.timeStamp, e.clientX]];
+        });
+
+        grid.addEventListener("pointermove", e => {
+            if (!start || e.pointerId !== start.id) return;
+            if (!dragging) {
+                if (Math.abs(e.clientX - start.x) < DRAG_PX) return;
+                dragging = true;
+                grid.setPointerCapture(e.pointerId);
+                grid.classList.add("vh-dragging");
+                getSelection()?.removeAllRanges();
+            }
+            grid.scrollLeft = start.left - (e.clientX - start.x);
+            samples.push([e.timeStamp, e.clientX]);
+            while (samples.length > 2 && e.timeStamp - samples[0][0] > 100) samples.shift();
+        });
+
+        const end = e => {
+            if (!start || e.pointerId !== start.id) return;
+            start = null;
+            if (!dragging) return;
+            dragging = false;
+            if (grid.hasPointerCapture(e.pointerId)) grid.releasePointerCapture(e.pointerId);
+
+            // 拖曳結束後的那個 click 不能打開卡片
+            const swallow = ev => { ev.preventDefault(); ev.stopPropagation(); };
+            addEventListener("click", swallow, { capture: true, once: true });
+            setTimeout(() => removeEventListener("click", swallow, true), 0);
+
+            const [t0, x0] = samples[0];
+            const dt = e.timeStamp - t0;
+            const v = dt > 0 ? (e.clientX - x0) / dt : 0;        // px/ms，往右拖為正
+            settle(grid.scrollLeft - v * 250);
+        };
+        grid.addEventListener("pointerup", end);
+        grid.addEventListener("pointercancel", end);
+
+        // 拖曳時別讓瀏覽器把連結或縮圖當成要拖走的東西
+        grid.addEventListener("dragstart", e => { if (VHS.on("rowDrag")) e.preventDefault(); });
+
+        function settle(aim) {
+            const pad = parseFloat(getComputedStyle(grid).scrollPaddingLeft) || 0;
+            const base = grid.getBoundingClientRect().left + grid.clientLeft;
+            const max = grid.scrollWidth - grid.clientWidth;
+            let to = Math.max(0, Math.min(max, aim));
+            let best = Infinity;
+            for (const c of visibleCards(grid)) {
+                const p = Math.max(0, Math.min(max, grid.scrollLeft + c.getBoundingClientRect().left - base - pad));
+                if (Math.abs(p - aim) < best) { best = Math.abs(p - aim); to = p; }
+            }
+            const done = () => grid.classList.remove("vh-dragging");
+            if (reduced() || Math.abs(to - grid.scrollLeft) < 1) {
+                grid.scrollLeft = to;
+                done();
+                return;
+            }
+            grid.addEventListener("scrollend", done, { once: true });
+            setTimeout(done, 1000);     // 保險：被別的捲動打斷時 scrollend 不一定會來
+            grid.scrollTo({ left: to, behavior: "smooth" });
+        }
     }
 
     function arrow(cls, label, d) {
