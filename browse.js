@@ -83,6 +83,11 @@
     measureHeader();
     if (header) new ResizeObserver(measureHeader).observe(header);
 
+    // 可用寬度（不含直向捲軸）。不用 clientWidth：它會四捨五入成整數，縮放 110% 這類不是整數像素的情況下
+    // 可能比實際寬一點點，照它撐滿的 hero、橫列就超出零點幾 px，整頁冒出橫向捲軸。
+    // 取小數的實際寬度再無條件捨去，寧可短不到 1px
+    const pageWidth = () => Math.floor(html.getBoundingClientRect().width);
+
     // ── 首頁、列表頁：hero 滿版 ───────────────────────────────
     // 用量的而不是 100vw：100vw 含捲軸寬度，Windows 上會多出橫向捲軸
     function placeHero() {
@@ -91,7 +96,7 @@
         host.style.marginLeft = host.style.marginTop = host.style.width = "";
         const r = host.getBoundingClientRect();
         host.style.marginLeft = `${-r.left}px`;
-        host.style.width = `${document.documentElement.clientWidth}px`;
+        host.style.width = `${pageWidth()}px`;
         host.style.marginTop = `${-(r.top + scrollY)}px`;     // 拉到文件頂端，讓頁首疊在上面
     }
 
@@ -158,8 +163,140 @@
                 a?.focus({ preventScroll: true });
                 to.scrollIntoView({ inline: "nearest", block: "nearest", behavior: reduced() ? "auto" : "smooth" });
             });
+
+            dragScroll(grid);
+            if (kind === "home") initMore(row);
         });
+        rows.forEach(syncMore);
         layoutRows();
+    }
+
+    // ── 首頁：列尾的「載入更多」卡 ─────────────────────────────
+    // 原本的「載入更多」在區塊下面置中（區塊的下一個兄弟 div.absolute，帶 x-show），新卡片卻接在橫列右邊。
+    // 改成橫列最後一格的按鈕，按下去代按原本的連結。原本的節點不搬也不碰 display（x-show 的），
+    // 只用 .vh-more-moved 讓它看不見；它被 x-show 收起來（沒有更多了）時，列尾卡也跟著藏。
+    // 新卡片可能接在列尾卡後面，所以每次 refresh 都把它挪回最後（只搬自己的節點）
+    const MORE_WAIT_MS = 10000;
+    function initMore(row) {
+        const orig = row.section.nextElementSibling;
+        const link = orig?.matches("div.absolute.w-full.text-center") && orig.querySelector("a");
+        if (!link) return;
+
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "vh-more";
+        tile.innerHTML = `<span class="vh-more-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="vh-more-label"></span>`;
+        tile.querySelector(".vh-more-label").textContent = link.textContent.trim() || "載入更多";
+        orig.classList.add("vh-more-moved");
+        Object.assign(row, { more: { orig, link, tile, loading: 0, count: 0, timer: 0 } });
+
+        tile.addEventListener("click", () => loadMore(row));
+        // 原本的 x-show 一動（收起來 = 沒有更多了），列尾卡跟著變
+        new MutationObserver(() => syncMore(row)).observe(orig, { attributes: true, attributeFilter: ["style"] });
+    }
+
+    function loadMore(row) {
+        const m = row.more;
+        if (!m || m.loading || m.tile.hidden) return;
+        m.loading = 1;
+        m.count = visibleCards(row.grid).length;
+        m.tile.classList.add("vh-loading");
+        m.tile.setAttribute("aria-busy", "true");
+        clearTimeout(m.timer);
+        m.timer = setTimeout(() => moreDone(row), MORE_WAIT_MS);
+        m.link.click();
+    }
+
+    function moreDone(row) {
+        const m = row.more;
+        m.loading = 0;
+        clearTimeout(m.timer);
+        m.tile.classList.remove("vh-loading");
+        m.tile.removeAttribute("aria-busy");
+    }
+
+    function syncMore(row) {
+        const m = row.more;
+        if (!m) return;
+        if (row.grid.lastElementChild !== m.tile) row.grid.append(m.tile);
+        m.tile.hidden = m.orig.style.display === "none";
+        if (m.loading && visibleCards(row.grid).length > m.count) moreDone(row);
+        syncArrows(row);
+    }
+
+    // 按住滑鼠左鍵左右拖曳橫列。移動超過 DRAG_PX 才算拖曳，之前都是一般點擊；
+    // 拖曳中關掉吸附（不然每一幀都被拉回卡片邊緣），放開後依甩動速度滑到最近的卡片，滑完再開回吸附
+    const DRAG_PX = 6;
+    function dragScroll(grid) {
+        let start = null;           // { id, x, left }
+        let dragging = false;
+        let samples = [];           // 最近的 [時間, x]，算放開時的速度
+
+        grid.addEventListener("pointerdown", e => {
+            if (e.pointerType !== "mouse" || e.button !== 0 || !VHS.on("rowDrag")) return;
+            if (e.target.closest("input, textarea, select, button")) return;
+            start = { id: e.pointerId, x: e.clientX, left: grid.scrollLeft };
+            dragging = false;
+            samples = [[e.timeStamp, e.clientX]];
+        });
+
+        grid.addEventListener("pointermove", e => {
+            if (!start || e.pointerId !== start.id) return;
+            if (!dragging) {
+                if (Math.abs(e.clientX - start.x) < DRAG_PX) return;
+                dragging = true;
+                grid.setPointerCapture(e.pointerId);
+                grid.classList.add("vh-dragging");
+                getSelection()?.removeAllRanges();
+            }
+            grid.scrollLeft = start.left - (e.clientX - start.x);
+            samples.push([e.timeStamp, e.clientX]);
+            while (samples.length > 2 && e.timeStamp - samples[0][0] > 100) samples.shift();
+        });
+
+        const end = e => {
+            if (!start || e.pointerId !== start.id) return;
+            start = null;
+            if (!dragging) return;
+            dragging = false;
+            if (grid.hasPointerCapture(e.pointerId)) grid.releasePointerCapture(e.pointerId);
+
+            // 拖曳結束後的那個 click 不能打開卡片
+            const swallow = ev => { ev.preventDefault(); ev.stopPropagation(); };
+            addEventListener("click", swallow, { capture: true, once: true });
+            setTimeout(() => removeEventListener("click", swallow, true), 0);
+
+            const [t0, x0] = samples[0];
+            const dt = e.timeStamp - t0;
+            const v = dt > 0 ? (e.clientX - x0) / dt : 0;        // px/ms，往右拖為正
+            settle(grid.scrollLeft - v * 250);
+        };
+        grid.addEventListener("pointerup", end);
+        grid.addEventListener("pointercancel", end);
+
+        // 拖曳時別讓瀏覽器把連結或縮圖當成要拖走的東西
+        grid.addEventListener("dragstart", e => { if (VHS.on("rowDrag")) e.preventDefault(); });
+
+        function settle(aim) {
+            const pad = parseFloat(getComputedStyle(grid).scrollPaddingLeft) || 0;
+            const base = grid.getBoundingClientRect().left + grid.clientLeft;
+            const max = grid.scrollWidth - grid.clientWidth;
+            let to = Math.max(0, Math.min(max, aim));
+            let best = Infinity;
+            for (const c of visibleCards(grid)) {
+                const p = Math.max(0, Math.min(max, grid.scrollLeft + c.getBoundingClientRect().left - base - pad));
+                if (Math.abs(p - aim) < best) { best = Math.abs(p - aim); to = p; }
+            }
+            const done = () => grid.classList.remove("vh-dragging");
+            if (reduced() || Math.abs(to - grid.scrollLeft) < 1) {
+                grid.scrollLeft = to;
+                done();
+                return;
+            }
+            grid.addEventListener("scrollend", done, { once: true });
+            setTimeout(done, 1000);     // 保險：被別的捲動打斷時 scrollend 不一定會來
+            grid.scrollTo({ left: to, behavior: "smooth" });
+        }
     }
 
     function arrow(cls, label, d) {
@@ -193,14 +330,14 @@
 
     // 橫列往右延伸到視窗邊緣（露出下一張），箭頭貼齊橫列的高度
     function layoutRows() {
-        const vw = document.documentElement.clientWidth;
+        const vw = pageWidth();
         for (const row of rows) {
             const { grid, section, prev, next } = row;
             const s = section.getBoundingClientRect();
             const padR = parseFloat(getComputedStyle(section).paddingRight) || 0;
             // --vh-bleed：橫列內容右緣到視窗右緣；--vh-edge：區塊外框右緣到視窗右緣（給箭頭）
-            section.style.setProperty("--vh-bleed", `${Math.max(0, vw - s.right + padR)}px`);
-            section.style.setProperty("--vh-edge", `${Math.max(0, vw - s.right)}px`);
+            section.style.setProperty("--vh-bleed", `${Math.max(0, Math.floor(vw - s.right + padR))}px`);
+            section.style.setProperty("--vh-edge", `${Math.max(0, Math.floor(vw - s.right))}px`);
             section.style.setProperty("--vh-pad", `${parseFloat(getComputedStyle(section).paddingLeft) || 0}px`);
             const top = `${grid.offsetTop}px`;
             const height = `${grid.offsetHeight}px`;
@@ -833,10 +970,20 @@
         setTimeout(() => { queued = false; refresh(); }, 200);
     }).observe(root, { childList: true, subtree: true });
 
-    addEventListener("resize", () => {
+    function onResize() {
         if (kind !== "video") placeHero();
         if (kind === "list") return;
         if (kind === "video" && restyle) measurePlayer();
         layoutRows();
-    });
+    }
+    addEventListener("resize", onResize);
+    // 直向捲軸出現／消失時可用寬度會變，但不會發 resize：頁面一開始還矮、量完 --vh-bleed 才長出捲軸，
+    // 橫列和 hero 就多出一條捲軸寬，整頁出現橫向捲軸。<html> 的寬度跟著捲軸變，盯它（高度的變化不理）
+    let docWidth = html.getBoundingClientRect().width;
+    new ResizeObserver(() => {
+        const w = html.getBoundingClientRect().width;
+        if (w === docWidth) return;
+        docWidth = w;
+        onResize();
+    }).observe(html);
 })();
