@@ -83,6 +83,11 @@
     measureHeader();
     if (header) new ResizeObserver(measureHeader).observe(header);
 
+    // 可用寬度（不含直向捲軸）。不用 clientWidth：它會四捨五入成整數，縮放 110% 這類不是整數像素的情況下
+    // 可能比實際寬一點點，照它撐滿的 hero、橫列就超出零點幾 px，整頁冒出橫向捲軸。
+    // 取小數的實際寬度再無條件捨去，寧可短不到 1px
+    const pageWidth = () => Math.floor(html.getBoundingClientRect().width);
+
     // ── 首頁、列表頁：hero 滿版 ───────────────────────────────
     // 用量的而不是 100vw：100vw 含捲軸寬度，Windows 上會多出橫向捲軸
     function placeHero() {
@@ -91,7 +96,7 @@
         host.style.marginLeft = host.style.marginTop = host.style.width = "";
         const r = host.getBoundingClientRect();
         host.style.marginLeft = `${-r.left}px`;
-        host.style.width = `${document.documentElement.clientWidth}px`;
+        host.style.width = `${pageWidth()}px`;
         host.style.marginTop = `${-(r.top + scrollY)}px`;     // 拉到文件頂端，讓頁首疊在上面
     }
 
@@ -325,14 +330,14 @@
 
     // 橫列往右延伸到視窗邊緣（露出下一張），箭頭貼齊橫列的高度
     function layoutRows() {
-        const vw = document.documentElement.clientWidth;
+        const vw = pageWidth();
         for (const row of rows) {
             const { grid, section, prev, next } = row;
             const s = section.getBoundingClientRect();
             const padR = parseFloat(getComputedStyle(section).paddingRight) || 0;
             // --vh-bleed：橫列內容右緣到視窗右緣；--vh-edge：區塊外框右緣到視窗右緣（給箭頭）
-            section.style.setProperty("--vh-bleed", `${Math.max(0, vw - s.right + padR)}px`);
-            section.style.setProperty("--vh-edge", `${Math.max(0, vw - s.right)}px`);
+            section.style.setProperty("--vh-bleed", `${Math.max(0, Math.floor(vw - s.right + padR))}px`);
+            section.style.setProperty("--vh-edge", `${Math.max(0, Math.floor(vw - s.right))}px`);
             section.style.setProperty("--vh-pad", `${parseFloat(getComputedStyle(section).paddingLeft) || 0}px`);
             const top = `${grid.offsetTop}px`;
             const height = `${grid.offsetHeight}px`;
@@ -965,10 +970,20 @@
         setTimeout(() => { queued = false; refresh(); }, 200);
     }).observe(root, { childList: true, subtree: true });
 
-    addEventListener("resize", () => {
+    function onResize() {
         if (kind !== "video") placeHero();
         if (kind === "list") return;
         if (kind === "video" && restyle) measurePlayer();
         layoutRows();
-    });
+    }
+    addEventListener("resize", onResize);
+    // 直向捲軸出現／消失時可用寬度會變，但不會發 resize：頁面一開始還矮、量完 --vh-bleed 才長出捲軸，
+    // 橫列和 hero 就多出一條捲軸寬，整頁出現橫向捲軸。<html> 的寬度跟著捲軸變，盯它（高度的變化不理）
+    let docWidth = html.getBoundingClientRect().width;
+    new ResizeObserver(() => {
+        const w = html.getBoundingClientRect().width;
+        if (w === docWidth) return;
+        docWidth = w;
+        onResize();
+    }).observe(html);
 })();
