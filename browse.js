@@ -160,8 +160,63 @@
             });
 
             dragScroll(grid);
+            if (kind === "home") initMore(row);
         });
+        rows.forEach(syncMore);
         layoutRows();
+    }
+
+    // ── 首頁：列尾的「載入更多」卡 ─────────────────────────────
+    // 原本的「載入更多」在區塊下面置中（區塊的下一個兄弟 div.absolute，帶 x-show），新卡片卻接在橫列右邊。
+    // 改成橫列最後一格的按鈕，按下去代按原本的連結。原本的節點不搬也不碰 display（x-show 的），
+    // 只用 .vh-more-moved 讓它看不見；它被 x-show 收起來（沒有更多了）時，列尾卡也跟著藏。
+    // 新卡片可能接在列尾卡後面，所以每次 refresh 都把它挪回最後（只搬自己的節點）
+    const MORE_WAIT_MS = 10000;
+    function initMore(row) {
+        const orig = row.section.nextElementSibling;
+        const link = orig?.matches("div.absolute.w-full.text-center") && orig.querySelector("a");
+        if (!link) return;
+
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "vh-more";
+        tile.innerHTML = `<span class="vh-more-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="vh-more-label"></span>`;
+        tile.querySelector(".vh-more-label").textContent = link.textContent.trim() || "載入更多";
+        orig.classList.add("vh-more-moved");
+        Object.assign(row, { more: { orig, link, tile, loading: 0, count: 0, timer: 0 } });
+
+        tile.addEventListener("click", () => loadMore(row));
+        // 原本的 x-show 一動（收起來 = 沒有更多了），列尾卡跟著變
+        new MutationObserver(() => syncMore(row)).observe(orig, { attributes: true, attributeFilter: ["style"] });
+    }
+
+    function loadMore(row) {
+        const m = row.more;
+        if (!m || m.loading || m.tile.hidden) return;
+        m.loading = 1;
+        m.count = visibleCards(row.grid).length;
+        m.tile.classList.add("vh-loading");
+        m.tile.setAttribute("aria-busy", "true");
+        clearTimeout(m.timer);
+        m.timer = setTimeout(() => moreDone(row), MORE_WAIT_MS);
+        m.link.click();
+    }
+
+    function moreDone(row) {
+        const m = row.more;
+        m.loading = 0;
+        clearTimeout(m.timer);
+        m.tile.classList.remove("vh-loading");
+        m.tile.removeAttribute("aria-busy");
+    }
+
+    function syncMore(row) {
+        const m = row.more;
+        if (!m) return;
+        if (row.grid.lastElementChild !== m.tile) row.grid.append(m.tile);
+        m.tile.hidden = m.orig.style.display === "none";
+        if (m.loading && visibleCards(row.grid).length > m.count) moreDone(row);
+        syncArrows(row);
     }
 
     // 按住滑鼠左鍵左右拖曳橫列。移動超過 DRAG_PX 才算拖曳，之前都是一般點擊；

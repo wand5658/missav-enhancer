@@ -247,6 +247,66 @@ html.vh-home [data-vh-section] a.text-nord4:hover {
 /* 設定「每列卡片」選了固定數字（--vh-per-n 已含露出的 0.4 張），只影響首頁 */
 html.vh-home.vh-per-fixed [data-vh-row] { --per: var(--vh-per-n); }
 
+/* 列尾的「載入更多」卡（browse.js 的 initMore）。原本區塊下面那個只藏起來：
+ * 它的 display 歸 x-show 管，所以用 visibility，position 蓋過上面廣告那條的 relative */
+html.vh-home [data-vh-section] + div.vh-more-moved {
+    position: absolute !important;
+    visibility: hidden;
+    pointer-events: none;
+}
+html.vh-home [data-vh-row] > .vh-more {
+    align-self: flex-start;
+    aspect-ratio: 16 / 9;       /* 跟封面一樣高：寬度跟卡片同一個 flex-basis，封面是 16:9 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid rgba(236, 239, 244, .14);
+    border-radius: 8px;
+    background: rgba(236, 239, 244, .06);
+    color: var(--vh-ink);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s, border-color .2s;
+}
+html.vh-home [data-vh-row] > .vh-more[hidden] { display: none; }
+html.vh-home [data-vh-row] > .vh-more:hover,
+html.vh-home [data-vh-row] > .vh-more:focus-visible {
+    background: rgba(236, 239, 244, .12);
+    border-color: rgba(236, 239, 244, .3);
+    outline: none;
+}
+.vh-more-ico {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(236, 239, 244, .1);
+    transition: transform .2s, background-color .2s;
+}
+.vh-more-ico svg { width: 26px; height: 26px; }
+html.vh-home [data-vh-row] > .vh-more:hover .vh-more-ico {
+    background: var(--vh-primary, #fe628e);
+    color: #fff;
+}
+html.vh-home:not(.vh-reduce) [data-vh-row] > .vh-more:hover .vh-more-ico { transform: scale(1.08); }
+/* 載入中：加號換成轉圈 */
+html.vh-home [data-vh-row] > .vh-more.vh-loading { cursor: progress; }
+.vh-more.vh-loading .vh-more-ico svg { display: none; }
+.vh-more.vh-loading .vh-more-ico::after {
+    content: "";
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(236, 239, 244, .3);
+    border-top-color: var(--vh-ink);
+    border-radius: 50%;
+    animation: vh-more-spin .8s linear infinite;
+}
+@keyframes vh-more-spin { to { transform: rotate(360deg); } }
+
 /* 箭頭：top / height 由 browse.js 對齊橫列；平常隱形，滑到區塊上才出現 */
 :is(html.vh-home, html.vh-video) .vh-arrow {
     position: absolute;
