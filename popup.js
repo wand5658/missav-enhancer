@@ -113,7 +113,9 @@
             { type: "sw", key: "viewerWall", label: o(0, "封面牆", "Cover wall"),
               hint: o(0, "這頁所有影片的大封面，點一張開那部影片", "Large covers of every video on the page; open one to go to it") },
             { type: "sw", key: "viewerPreview", label: o(0, "封面牆滑鼠停留播預覽", "Preview on hover in the cover wall"),
-              hint: o(0, "跟頁面上的卡片一樣；有高畫質快取時用高畫質", "Like the cards on the page, in HD when it is already cached") },
+              hint: o(0, "總覽和點開的單張都會播", "In the grid and in single view") },
+            { type: "sw", key: "viewerHD", label: o(0, "封面牆預覽用高畫質", "HD previews in the cover wall"),
+              hint: o(0, "先播原本的預覽，高畫質好了再換上。沒看過的影片會向網站讀一次影片頁", "Starts with the normal preview, then switches to HD. For videos not seen before it loads the video page once") },
         ] },
         { id: "ads", ico: "⊘", title: o(0, "廣告", "Ads"), items: [
             { type: "sw", key: "hideAds", label: o(0, "隱藏頁面廣告", "Hide page ads"),

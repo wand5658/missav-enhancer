@@ -460,8 +460,8 @@
     }
 
     // ── 封面牆：滑鼠停在格子上（或單張的圖上）播預覽（設定 viewerPreview）─────────────
-    // 跟頁面上的卡片一樣：先播站台的 preview.mp4；「卡片預覽用高畫質」開著、而且 hd.js 快取裡已經有這部的串流，
-    // 就再疊一層高畫質快剪，出畫面才淡入蓋上去（不 fetch 影片頁，不多碰 Cloudflare）。
+    // 先播站台的 preview.mp4；設定 viewerHD 開著就再疊一層高畫質快剪，出畫面才淡入蓋上去。
+    // 跟頁面卡片的 hover（hoverHD，只用快取）不同：快取沒有就去抓影片頁，所以封面牆每一部都能播高畫質。
     // 停 HOVER_DELAY 才開始，掃過去的格子不發 request；同時只有一格（viewer 保證），移開就整個拿掉。
     // el 是總覽的格子，或單張時疊在圖上的那一層（viewer 讓它跟圖同大小、同變形）
     const HOVER_DELAY = 300;
@@ -488,9 +488,12 @@
             box.append(v);
             v.play().catch(() => {});
 
+            // 高畫質：跟輪播同一條路（VHD.resolve）。快取沒有就去抓影片頁找串流、挑片段，
+            // 抓頁一次一個、被 Cloudflare 擋會退避（hd.js）；結果進快取，之後這張和頁面上的卡片都直接用
             const id = /\/([^/]+)\/preview\.mp4$/.exec(item.bvPreview)?.[1];
-            if (!id || !VHS.on("hoverHD") || !globalThis.VHD) return;
-            const entry = await VHD.peek(id);
+            const href = item.dataset.bvHref;
+            if (!id || !href || !VHS.on("viewerHD") || !globalThis.VHD) return;
+            const entry = await VHD.resolve({ id, href }, VHS.get("heroHDPick"));
             if (dead || !entry) return;
             const hd = layer();
             mont = VHD.montage(hd, entry, VHD.quality(el.getBoundingClientRect().width), () => { hd.remove(); mont = null; });
