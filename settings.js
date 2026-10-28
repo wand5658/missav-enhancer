@@ -60,6 +60,7 @@ globalThis.VHS = (() => {
 
         ads: true,
         hideAds: true,
+        blockPop: true,             // 影片頁點播放時站台開的廣告分頁（pop-block.js）
     };
 
     // 項目 → 所屬的總開關。總開關關掉，底下的項目一律當成關
@@ -71,7 +72,7 @@ globalThis.VHS = (() => {
         video: ["videoTheater", "videoGap", "videoHidePromo"],
         look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "hoverHD", "rowDrag", "reveal", "revealGap", "revealMs"],
         viewer: ["viewerStory", "viewerSharp", "viewerWall", "viewerPreview", "viewerHD"],
-        ads: ["hideAds"],
+        ads: ["hideAds", "blockPop"],
     };
     const MASTER = {};
     for (const [m, keys] of Object.entries(GROUPS)) keys.forEach(k => { MASTER[k] = m; });

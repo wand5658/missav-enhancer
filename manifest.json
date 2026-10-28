@@ -32,7 +32,8 @@
         "https://missav.ws/*"
       ],
       "js": [
-        "anti-pause.js"
+        "anti-pause.js",
+        "pop-block.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"

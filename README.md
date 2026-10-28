@@ -47,6 +47,7 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
 - **Storyboard and cover wall**: a drawer on the right edge of the page (hover it to slide it out) opens a full-screen viewer. *Storyboard* (video pages) lays out the player's scrub thumbnails as a grid, up to 240 frames each labelled with its time; pick one and press `Enter` (or **▶ Play from here**) to close the viewer and play from that moment. Resting on a frame for a moment swaps in a sharp still grabbed from the video stream (about 1 MB each; can be turned off). *Cover wall* shows every video card on the page as a large cover with its title and length; hovering a cover — in the grid or opened on its own — plays its preview (switching to HD once that is ready) and scrolls a title that does not fit; `Enter` opens that video. The viewer has a grid and single view, zoom, rotate, slideshow and a thumbnail strip — press `?` inside it for the keys. It follows the popup's language setting.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**
+- **No pop-up ad tab**: the site opens an ad in a new tab on your first click on the player (or press of Space). The extension stops that tab from opening and the video plays as usual.
 
 ## Install
 
@@ -95,6 +96,7 @@ The restyle is plain CSS scoped under classes on `<html>`, plus scripts that mar
 | File | World | Timing | Purpose |
 |---|---|---|---|
 | `anti-pause.js` | `MAIN` | `document_start` | Intercepts `window.player.pause()` |
+| `pop-block.js` | `MAIN` | `document_start` | Stops the site's pop-up ad tab |
 | `settings.js` | isolated | `document_end` | Settings from `chrome.storage.sync` (shared with the popup) |
 | `pages.js` | isolated | `document_end` | Page detection (home / list / video) |
 | `hd.js` | isolated | `document_end` | HD previews: finds the stream, picks clips, plays the montage |

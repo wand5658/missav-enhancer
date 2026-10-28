@@ -120,6 +120,8 @@
         { id: "ads", ico: "⊘", title: o(0, "廣告", "Ads"), items: [
             { type: "sw", key: "hideAds", label: o(0, "隱藏頁面廣告", "Hide page ads"),
               hint: o(0, "首頁、列表頁、影片頁的橫幅與右下角廣告", "Banners and the corner ad") },
+            { type: "sw", key: "blockPop", label: o(0, "擋掉彈出的廣告分頁", "Block pop-up ad tabs"),
+              hint: o(0, "影片頁第一次點播放（或按空白鍵）時網站會開的那個", "The one the site opens on your first click on the player (or Space)") },
         ] },
     ];
 
@@ -319,6 +321,7 @@
         cardTitle: o(0, "影片卡標題", "Video card titles"),
         hdBlocked: o(0, "高畫質預覽被網站擋下", "HD previews blocked by the site"),
         storyboard: o(0, "分鏡（讀不到預覽圖規格）", "Storyboard (scrub thumbnail spec not found)"),
+        popBlock: o(0, "擋廣告分頁（網站改了開分頁的方式）", "Pop-up ad blocking (the site changed how it opens them)"),
     };
     let health = null;              // { kind, miss, report } 或 null（沒回應）
     function renderHealth() {

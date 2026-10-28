@@ -44,6 +44,11 @@
             }
             if (VHS.on("look") && VHS.on("ambient") && !html.style.getPropertyValue("--vh-cover")) add("cover");
             if (VHS.on("viewerStory") && globalThis.VHV && !VHV.storyOk()) add("storyboard", "no thumbnail spec / uuid");
+            // pop-block.js 只認同網域的 /pop。播放器的 Alpine 元件還會 window.open、卻不再走 /pop，就是站台換了寫法
+            if (VHS.on("blockPop")) {
+                const opener = [...document.querySelectorAll("[x-data]")].map(e => e.getAttribute("x-data")).find(s => s.includes("window.open("));
+                if (opener && !opener.includes("/pop?url=")) add("popBlock", "window.open without /pop");
+            }
         }
         if (kind && VH.hero()) {
             // tidyCards 找不到標題（.my-2 a）的卡片不會被標記。片單頁（NO_HERO）的標題本來就不在卡片裡，不算
