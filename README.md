@@ -20,6 +20,10 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 <td><img src="docs/screenshots/video-rows.jpg" alt="Up-next row, title, actions and details"><br><sub>Up-next row, title, actions and details</sub></td>
 </tr>
 <tr>
+<td><img src="docs/screenshots/viewer-story.jpg" alt="Storyboard: the scrub thumbnails as a grid, each with its time"><br><sub>Storyboard: the scrub thumbnails as a grid, each with its time</sub></td>
+<td><img src="docs/screenshots/viewer-wall.jpg" alt="Cover wall: every video on the page, hover plays the preview"><br><sub>Cover wall: every video on the page, hover plays the preview</sub></td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/list-pager.jpg" alt="List pagination"><br><sub>List pagination</sub></td>
 <td align="center"><img src="docs/screenshots/popup.png" alt="Settings popup" width="260"><br><sub>Settings popup</sub></td>
 </tr>
@@ -41,7 +45,7 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **Login**: the login, sign-up and password dialogs are restyled, with a slowly scrolling wall of covers beside the form, and pages that need an account show a clear sign-in card.
 - **History and playlists**: the watch history gets the carousel, wide grid and pagination of the other lists; your playlists become a grid of cards, and a playlist's videos become panels with a larger thumbnail and a tidier comment box. On a video page, the playlist panel is restyled to match.
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
-- **Storyboard and cover wall**: a drawer on the right edge of the page (hover it to slide it out) opens a full-screen viewer. *Storyboard* (video pages) lays out the player's scrub thumbnails as a grid, up to 240 frames each labelled with its time; pick one and press `Enter` (or **▶ Play from here**) to close the viewer and play from that moment. Resting on a frame for a moment swaps in a sharp still grabbed from the video stream (about 1 MB each; can be turned off). *Cover wall* shows every video card on the page as a large cover with its title and length; hovering a cover — in the grid or opened on its own — plays its preview, switching to HD once that is ready and scrolls a title that does not fit; `Enter` opens that video. The viewer has a grid and single view, zoom, rotate, slideshow and a thumbnail strip — press `?` inside it for the keys. It follows the popup's language setting.
+- **Storyboard and cover wall**: a drawer on the right edge of the page (hover it to slide it out) opens a full-screen viewer. *Storyboard* (video pages) lays out the player's scrub thumbnails as a grid, up to 240 frames each labelled with its time; pick one and press `Enter` (or **▶ Play from here**) to close the viewer and play from that moment. Resting on a frame for a moment swaps in a sharp still grabbed from the video stream (about 1 MB each; can be turned off). *Cover wall* shows every video card on the page as a large cover with its title and length; hovering a cover — in the grid or opened on its own — plays its preview (switching to HD once that is ready) and scrolls a title that does not fit; `Enter` opens that video. The viewer has a grid and single view, zoom, rotate, slideshow and a thumbnail strip — press `?` inside it for the keys. It follows the popup's language setting.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**
 
 ## Install

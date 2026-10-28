@@ -18,6 +18,10 @@ MissAV 一切到別的分頁或視窗，影片就自動暫停？這是 **missav.
 <td><img src="docs/screenshots/video-rows.jpg" alt="「接著看」橫向列、標題、按鈕與詳情"><br><sub>「接著看」橫向列、標題、按鈕與詳情</sub></td>
 </tr>
 <tr>
+<td><img src="docs/screenshots/viewer-story.jpg" alt="分鏡：拖曳預覽圖攤成格子，每格標著時間"><br><sub>分鏡：拖曳預覽圖攤成格子，每格標著時間</sub></td>
+<td><img src="docs/screenshots/viewer-wall.jpg" alt="封面牆：這頁所有影片，滑鼠停著播預覽"><br><sub>封面牆：這頁所有影片，滑鼠停著播預覽</sub></td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/list-pager.jpg" alt="列表分頁"><br><sub>列表分頁</sub></td>
 <td align="center"><img src="docs/screenshots/popup.png" alt="設定面板" width="260"><br><sub>設定面板</sub></td>
 </tr>
