@@ -1,6 +1,7 @@
 // 輪播的高畫質預覽（設定 heroHD）：用正片的 HLS 串流取代 320×180 的 preview.mp4。
 //
 // 串流網址是 surrit.com/<uuid>/<畫質>/video.m3u8，uuid 只在影片頁的 HTML 裡（卡片上那個 uuid 不是它），
+// <畫質> 的目錄名要從 playlist.m3u8 讀（新片是 480p、舊片是 842x480，見 streamUrl），
 // 所以要同源 fetch 影片頁；站台在 Cloudflare 後面，會不定時回 403，失敗就退回 preview.mp4。
 // 拿到的結果（uuid、片長、拖曳預覽圖的規格、挑好的起點）存在 chrome.storage.local，同一部不再 fetch。
 // 使用者自己打開影片頁時，這裡直接從頁面讀進快取，不花任何請求。
@@ -279,12 +280,47 @@ globalThis.VHD = (() => {
 
     const src = (e, q) => `${CDN}/${e.u}/${q}/video.m3u8`;
 
+    // 畫質目錄不是每部都叫 480p / 720p：2026-10-28 量到舊片（playlist 2024-01）是 640x360 / 842x480 / 1280x720，
+    // 拼 480p 直接 404，那幾部的高畫質就一律失敗。所以第一次播某部時先讀 playlist.m3u8，
+    // 照裡面的 RESOLUTION 挑不超過要求高度的最高那條（都比要求高就挑最低的）；這一頁記住，同一部不再讀。
+    // 讀不到就退回原本拼的網址。no-store：<video> 載過的 playlist 沒帶 Origin，快取裡那份沒有 CORS header
+    const variants = new Map();             // uuid → Promise<[{ h, url }]>
+    function streamUrl(e, q) {
+        const master = `${CDN}/${e.u}/playlist.m3u8`;
+        if (!variants.has(e.u)) {
+            variants.set(e.u, fetch(master, { cache: "no-store" })
+                .then(r => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+                .then(text => {
+                    const lines = text.split(/\r?\n/), out = [];
+                    for (let i = 0; i < lines.length - 1; i++) {
+                        const h = Number(/RESOLUTION=\d+x(\d+)/.exec(lines[i])?.[1]);
+                        const path = lines[i + 1].trim();
+                        if (h && path && !path.startsWith("#")) out.push({ h, url: new URL(path, master).href });
+                    }
+                    return out;
+                })
+                .catch(err => {
+                    log("playlist error", e.u, err.message);
+                    variants.delete(e.u);           // 下次再試
+                    return [];
+                }));
+        }
+        const want = parseInt(q, 10) || 480;
+        return variants.get(e.u).then(list => {
+            if (!list.length) return src(e, q);
+            const pick = list.filter(v => v.h <= want).sort((a, b) => b.h - a.h)[0]
+                || [...list].sort((a, b) => a.h - b.h)[0];
+            return pick.url;
+        });
+    }
+
     // 快剪播放器：在 frame 裡放兩個 <video class="mv">，播的那個帶 data-on（hero.js 的 CSS 只顯示它）。
     // 介面跟 <video> 一樣有 play() / pause()，另加 stop()；任一個載入失敗就收掉並呼叫 onFail。
     // 沒有時間上限：輪播和 hover 底下都有原本的預覽在播，等多久都不影響畫面，換張 / 移開時由呼叫端 stop()。
     // onLive：第一段要出畫面前呼叫，回傳 false 就不出畫面、直接收掉（不算失敗，不呼叫 onFail）
     function montage(frame, e, q, onFail, onLive = null) {
         const clips = e.c, n = clips.length;
+        const url = streamUrl(e, q);
         // 第二個 video 等第一段出畫面才開始載：起播時兩條串流搶頻寬，第一段要慢上一兩秒
         const mk = load => {
             const v = document.createElement("video");
@@ -292,7 +328,7 @@ globalThis.VHD = (() => {
             v.muted = v.defaultMuted = true;
             v.playsInline = true;
             v.preload = "auto";
-            if (load) v.src = src(e, q);
+            if (load) url.then(u => { if (!dead) v.src = u; });
             v.addEventListener("error", fail);
             frame.append(v);
             return v;
@@ -318,7 +354,7 @@ globalThis.VHD = (() => {
                 cur.setAttribute("data-on", "");
                 frame.dataset.live = "1";
                 live = true;
-                vs[1].src = src(e, q);
+                url.then(u => { if (!dead) vs[1].src = u; });
                 seekTo(vs[1], clips[1 % n]);
             }
             if (t < clips[i] + CLIP_S) return;
@@ -373,5 +409,5 @@ globalThis.VHD = (() => {
 
     if (globalThis.VH?.kind?.() === "video") harvest();
 
-    return { resolve, peek, quality, montage, stats, parse };
+    return { resolve, peek, quality, montage, streamUrl, stats, parse };
 })();
