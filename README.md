@@ -41,6 +41,7 @@ Not affiliated with the site. No data collection, no remote requests — see [Pr
 - **Login**: the login, sign-up and password dialogs are restyled, with a slowly scrolling wall of covers beside the form, and pages that need an account show a clear sign-in card.
 - **History and playlists**: the watch history gets the carousel, wide grid and pagination of the other lists; your playlists become a grid of cards, and a playlist's videos become panels with a larger thumbnail and a tidier comment box. On a video page, the playlist panel is restyled to match.
 - **Theater video page**: the player fills a full-width band sized to the window height, lit by a blurred glow from the video's own cover. The up-next list becomes a scrolling row right under it.
+- **Storyboard and cover wall**: a drawer on the right edge of the page (hover it to slide it out) opens a full-screen viewer. *Storyboard* (video pages) lays out the player's scrub thumbnails as a grid, up to 240 frames each labelled with its time; pick one and press `Enter` (or **▶ Play from here**) to close the viewer and play from that moment. Resting on a frame for a moment swaps in a sharp still grabbed from the video stream (about 1 MB each; can be turned off). *Cover wall* shows every video card on the page as a large cover with its title and length; `Enter` opens that video. The viewer has a grid and single view, zoom, rotate, slideshow and a thumbnail strip — press `?` inside it for the keys. It follows the popup's language setting.
 - **Edge-to-edge layout, scroll reveal, ad hiding.**
 
 ## Install
@@ -59,19 +60,19 @@ An extension loaded this way does **not** update itself. To update, download the
 
 ## Settings
 
-Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is in Traditional Chinese or English, following the browser's language. Each group (anti auto-pause, cover carousel, home page, list pages, video page, look and motion, ads) has a master switch and its own options. Changes apply to open tabs immediately; the few that restructure a page are marked and offer a reload. Settings sync across browsers signed in to the same account, and can be reset, exported and imported as JSON.
+Click the toolbar icon (pin it from the puzzle-piece menu first). The popup is in Traditional Chinese or English, following the browser's language. Each group (anti auto-pause, cover carousel, home page, list pages, video page, look and motion, storyboard and cover wall, ads) has a master switch and its own options. Changes apply to open tabs immediately; the few that restructure a page are marked and offer a reload. Settings sync across browsers signed in to the same account, and can be reset, exported and imported as JSON.
 
 ## Privacy
 
 - The extension sends nothing anywhere by itself; the diagnostics above leave only when you click **Report** or paste them.
 - The only permission is `storage`, used for your settings (`chrome.storage.sync`) and a local cache (`chrome.storage.local`): for HD previews, each video's stream address and picked clips; for the login dialog, a list of cover thumbnail addresses.
 - Host access is limited to `missav.ai` and `missav.ws`.
-- There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. When the login dialog opens on a page without video cards, it requests the site's home page (or its latest-videos list) once to pick covers for the dialog's cover wall, and keeps that list locally for a day. Hovering a card whose stream is already cached (*HD card previews*) streams it from the same CDN. Turn both HD options off and, apart from the login covers, it makes no requests of its own.
+- There is no background script. The carousel is built from video cards already on the page. With HD previews on, the extension also requests each carousel video's page on the same site (to find its stream), that video's scrub thumbnails and the stream itself from the site's video CDN — the same requests the site's own player makes. When the login dialog opens on a page without video cards, it requests the site's home page (or its latest-videos list) once to pick covers for the dialog's cover wall, and keeps that list locally for a day. Hovering a card whose stream is already cached (*HD card previews*) streams it from the same CDN. Opening the storyboard requests that video's scrub thumbnails from the same CDN, and *sharp storyboard frames* request one stream segment for each frame you rest on. Turn the HD options and those two off and, apart from the login covers, it makes no requests of its own.
 - No analytics or tracking.
 
 ## Other domains
 
-The site moves between domains. To add one, edit `manifest.json` in **three** places: `host_permissions`, and the `matches` of both `content_scripts` entries. Then reload the extension. Missing one makes the extension half-work. Optionally, also add the domain to the `SITE` regex in `popup.js`; it only drives the popup's "on this site" indicator.
+The site moves between domains. To add one, edit `manifest.json` in **four** places: `host_permissions`, the `matches` of both `content_scripts` entries, and the `matches` of `web_accessible_resources`. Then reload the extension. Missing one makes the extension half-work. Optionally, also add the domain to the `SITE` regex in `popup.js`; it only drives the popup's "on this site" indicator.
 
 If a new official domain shows up, an issue or PR is welcome.
 
@@ -95,6 +96,8 @@ The restyle is plain CSS scoped under classes on `<html>`, plus scripts that mar
 | `hd.js` | isolated | `document_end` | HD previews: finds the stream, picks clips, plays the montage |
 | `hero.js` | isolated | `document_end` | Cover carousel |
 | `browse.js` + `browse.css` | isolated | `document_end` | Layout, rows, list toolbar and pagination, video page, scroll reveal |
+| `viewer.js` + `viewer.css` | isolated | `document_end` | The full-screen image viewer (site-agnostic) |
+| `viewer-host.js` | isolated | `document_end` | Storyboard, sharp frames, cover wall and the edge drawer |
 | `health.js` | isolated | `document_end` | Checks that each feature took effect; answers the popup's diagnostics |
 | `popup.html` / `.css` / `.js` | — | — | Settings popup |
 

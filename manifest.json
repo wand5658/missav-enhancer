@@ -48,12 +48,25 @@
         "hd.js",
         "hero.js",
         "browse.js",
+        "viewer.js",
+        "viewer-host.js",
         "health.js"
       ],
       "css": [
         "browse.css"
       ],
       "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "viewer.css"
+      ],
+      "matches": [
+        "https://missav.ai/*",
+        "https://missav.ws/*"
+      ]
     }
   ]
 }

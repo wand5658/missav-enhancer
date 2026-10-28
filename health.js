@@ -43,6 +43,7 @@
                 if (VHS.on("videoTheater") && !html.style.getPropertyValue("--vh-player-top")) add("player");
             }
             if (VHS.on("look") && VHS.on("ambient") && !html.style.getPropertyValue("--vh-cover")) add("cover");
+            if (VHS.on("viewerStory") && globalThis.VHV && !VHV.storyOk()) add("storyboard", "no thumbnail spec / uuid");
         }
         if (kind && VH.hero()) {
             // tidyCards 找不到標題（.my-2 a）的卡片不會被標記。片單頁（NO_HERO）的標題本來就不在卡片裡，不算

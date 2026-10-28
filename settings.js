@@ -3,7 +3,7 @@
 // content script 這邊排在第二個 content_scripts 條目的最前面，hero.js / browse.js 等 VHS.ready 再啟動。
 globalThis.VHS = (() => {
     const DEFAULTS = {
-        lang: "auto",               // auto / zh / en（只影響 popup）
+        lang: "auto",               // auto / zh / en（popup 與分鏡 / 封面牆的 viewer；頁面上其他改版的文字不跟著換）
         motion: "system",           // system / full / reduce
 
         antiPause: true,
@@ -51,6 +51,11 @@ globalThis.VHS = (() => {
         revealGap: 150,
         revealMs: 800,
 
+        viewer: true,               // 分鏡與封面牆（viewer-host.js）
+        viewerStory: true,
+        viewerSharp: true,          // 分鏡單張停一下就從串流抓清楚畫面（一格約 1 MB）
+        viewerWall: true,
+
         ads: true,
         hideAds: true,
     };
@@ -63,6 +68,7 @@ globalThis.VHS = (() => {
         list: ["listChips", "listPager", "listCols"],
         video: ["videoTheater", "videoGap", "videoHidePromo"],
         look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "hoverHD", "rowDrag", "reveal", "revealGap", "revealMs"],
+        viewer: ["viewerStory", "viewerSharp", "viewerWall"],
         ads: ["hideAds"],
     };
     const MASTER = {};
