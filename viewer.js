@@ -20,6 +20,8 @@
    - action(act)      tools / keys 的 act 由它處理
    - itemAction(item) 這一張的動作 { label, run } 或 null（Enter 與工具列最左邊那顆）
    - onShow(item)     換到某一張之後
+   - tileHover(item, tile)  滑鼠進到總覽的某一格；回傳一個收掉的函式（滑鼠離開、總覽關掉時呼叫）
+   - reduced()        要不要少動畫（預設看 prefers-reduced-motion）；目前只管標題跑馬燈
    - onRound(items)   一輪開始（items 已換好、goTo 之前）；回傳這一輪的標題
    - onUpdate()       工具列狀態更新完；宿主自己的按鈕在這裡跟著改
    - onClose(items, index)   viewer 關掉之後（捲回頁面上的哪裡由宿主決定）
@@ -1086,7 +1088,12 @@
         if (title) {
           const cap = document.createElement('span');
           cap.className = 'bv-gtitle';
-          cap.textContent = title;
+          const win = document.createElement('span');    // 兩行高的窗
+          win.className = 'bv-gtitle-win';
+          const text = document.createElement('span');   // 跑馬燈動的是裡面這層
+          text.textContent = title;
+          win.appendChild(text);
+          cap.appendChild(win);
           tile.appendChild(cap);
           tile.title = title;
         }
@@ -1094,6 +1101,43 @@
         watchLazy(gridLazy, tile);
       }
       relayoutGrid();
+    }
+
+    /* ── 滑鼠停在總覽的某一格 ─────────────────────────────
+       標題兩行放不下就上下來回捲（跑馬燈），宿主的 tileHover 可以在格子裡放東西（例如預覽影片）。
+       同時只有一格；滑鼠離開、總覽關掉（resetGrid）都會收掉 */
+    let hoverTile = null;
+    let hoverStop = null;
+    const reduced = () => (host.reduced ? host.reduced() : matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function tileEnter(tile) {
+      if (tile === hoverTile) return;
+      tileLeave();
+      hoverTile = tile;
+      const box = tile.querySelector('.bv-gtitle');
+      const win = box?.firstElementChild;
+      if (win && !reduced()) {
+        // 截成兩行時量到的是截過的高度，先放開（data-mq）量全文，放得下再收回去
+        box.dataset.mq = '';
+        const over = win.firstElementChild.offsetHeight - win.clientHeight;
+        if (over > 2) {
+          box.style.setProperty('--bv-mq-y', `${-over}px`);
+          box.style.setProperty('--bv-mq-t', `${Math.max(3, over / 16 + 2).toFixed(1)}s`);   // 約一秒一行，兩頭各停一下
+        } else {
+          delete box.dataset.mq;
+        }
+      }
+      const item = items[Number(tile.dataset.i)];
+      try { hoverStop = (item && host.tileHover?.(item, tile)) || null; } catch { hoverStop = null; }
+    }
+
+    function tileLeave() {
+      if (!hoverTile) return;
+      const box = hoverTile.querySelector('.bv-gtitle');
+      if (box) delete box.dataset.mq;
+      try { hoverStop?.(); } catch { /* 宿主收不乾淨也不影響 viewer */ }
+      hoverTile = null;
+      hoverStop = null;
     }
 
     // ms = 0：一直留著（批次下載進度用），等下一個 toast 蓋掉
@@ -1261,6 +1305,14 @@
       ui.thumbs.addEventListener('pointercancel', endThumbDrag);
 
       // 總覽底下的宿主區塊（推薦卡）由宿主自己掛 listener，這裡只管格子
+      ui.gridInner.addEventListener('pointerover', (e) => {
+        const tile = e.target.closest('.bv-gtile');
+        if (tile) tileEnter(tile);
+      });
+      ui.gridInner.addEventListener('pointerout', (e) => {
+        if (hoverTile && !hoverTile.contains(e.relatedTarget)) tileLeave();
+      });
+
       ui.grid.addEventListener('click', (e) => {
         const tile = e.target.closest('.bv-gtile');
         if (!tile) return;
@@ -1508,6 +1560,7 @@
     }
 
     function resetGrid() {
+      tileLeave();       // 換一輪、關 viewer、回單圖都會走這裡
       ui.grid.hidden = true;
       ui.gridBtn.dataset.on = '0';
       ui.overlay.dataset.grid = '0';

@@ -61,8 +61,20 @@
         idleHide: 2500, preload: 4, preloadAll: true,
     };
 
+    // viewer.css 之後接上這支自己的樣式（封面牆 hover 預覽），一起進 viewer 的 Shadow DOM
+    const HOST_CSS = `
+        .vh-tp {
+            position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none;
+            background: #000; opacity: 0; transition: opacity .3s ease;
+        }
+        .vh-tp[data-live="1"] { opacity: 1; }
+        .vh-tp video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .vh-tp video.mv { opacity: 0; }
+        .vh-tp video.mv[data-on] { opacity: 1; }
+    `;
     let cssPromise = null;
-    const loadCss = () => (cssPromise ||= fetch(chrome.runtime.getURL("viewer.css")).then(r => r.text()).catch(() => ""));
+    const loadCss = () => (cssPromise ||= fetch(chrome.runtime.getURL("viewer.css")).then(r => r.text()).catch(() => "")
+        .then(css => css + HOST_CSS));
 
     let roundTitle = "";                      // 這一輪上方列的標題（分鏡是影片標題，封面牆沒有）
 
@@ -90,6 +102,8 @@
         help: [["Enter", STR[l].helpEnter]],
         itemAction,
         onShow: item => wantSharp(item),      // 分鏡格先顯示模糊的，停一下再換成串流抓的清楚畫面
+        tileHover,
+        reduced: () => VHS.reduced(),
         onRound: () => roundTitle,
         onClose,
     });
@@ -432,6 +446,9 @@
                 .map(el => el.textContent.trim()).find(t => CFG.duration.test(t)) || "";
             const item = makeItem(src, 800, 537, { bvHref: a.href, bvTitle: title, bvCap: dur });
             item.bvCard = card;                             // 關掉時捲回這張卡片
+            const pv = card.querySelector("video.preview");
+            const pvSrc = pv?.getAttribute("data-src") || pv?.getAttribute("src") || "";
+            if (pvSrc) item.bvPreview = new URL(pvSrc, location.href).href;   // hover 時播（tileHover）
             // 從畫面上第一張看得到的卡片開始，不用每次都從頁首翻
             if (start < 0 && card.getBoundingClientRect().bottom > 0) start = list.length;
             list.push(item);
@@ -439,6 +456,57 @@
         if (!list.length) return t().noCards;
         open(list, Math.max(0, start), "");
         return "";
+    }
+
+    // ── 封面牆：滑鼠停在格子上播預覽（設定 viewerPreview）─────────────
+    // 跟頁面上的卡片一樣：先播站台的 preview.mp4；「卡片預覽用高畫質」開著、而且 hd.js 快取裡已經有這部的串流，
+    // 就再疊一層高畫質快剪，出畫面才淡入蓋上去（不 fetch 影片頁，不多碰 Cloudflare）。
+    // 停 HOVER_DELAY 才開始，掃過去的格子不發 request；同時只有一格（viewer 保證），移開就整個拿掉
+    const HOVER_DELAY = 300;
+    function tileHover(item, tile) {
+        if (!item.bvPreview || !VHS.on("viewerPreview")) return null;
+        const boxes = [];
+        let mont = null;
+        let dead = false;
+        const layer = () => {
+            const box = document.createElement("div");
+            box.className = "vh-tp";
+            tile.append(box);
+            boxes.push(box);
+            return box;
+        };
+        const timer = setTimeout(async () => {
+            const box = layer();
+            const v = document.createElement("video");
+            v.muted = v.defaultMuted = true;
+            v.playsInline = true;
+            v.loop = true;
+            v.addEventListener("playing", () => { box.dataset.live = "1"; }, { once: true });
+            v.src = item.bvPreview;
+            box.append(v);
+            v.play().catch(() => {});
+
+            const id = /\/([^/]+)\/preview\.mp4$/.exec(item.bvPreview)?.[1];
+            if (!id || !VHS.on("hoverHD") || !globalThis.VHD) return;
+            const entry = await VHD.peek(id);
+            if (dead || !entry) return;
+            const hd = layer();
+            mont = VHD.montage(hd, entry, VHD.quality(tile.getBoundingClientRect().width), () => { hd.remove(); mont = null; });
+            mont.play().catch(() => {});
+        }, HOVER_DELAY);
+        return () => {
+            dead = true;
+            clearTimeout(timer);
+            mont?.stop();
+            for (const box of boxes) {
+                for (const v of box.querySelectorAll("video")) {
+                    v.pause();
+                    v.removeAttribute("src");           // 拿掉 src 才會真的中斷下載
+                    v.load();
+                }
+                box.remove();
+            }
+        };
     }
 
     // ── 入口：畫面右緣正中間的抽屜（自己一個 Shadow DOM，不碰頁面樣式）──

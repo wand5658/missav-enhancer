@@ -623,6 +623,7 @@
 .bv-gtile[data-cap]:not([data-failed="1"])::after {
   content: attr(data-cap);
   position: absolute;
+  z-index: 2;              /* 蓋在宿主放進格子的東西（預覽影片）上面 */
   right: 4px;
   bottom: 4px;
   padding: 1px 6px;
@@ -639,9 +640,12 @@
   bottom: auto;
 }
 
-/* 每張自己的標題（data-bv-title）：格子底部一條漸層，最多兩行 */
+/* 每張自己的標題（data-bv-title）：格子底部一條漸層，兩行；放不下時平常是刪節號，
+   滑鼠停著就上下來回捲出被擋住的那幾行（viewer.js 的 tileEnter 量出要捲多遠，寫進 --bv-mq-y / --bv-mq-t）。
+   兩行的窗（.bv-gtitle-win）跟 padding 分開，捲動時才不會露出第三行的上緣 */
 .bv-gtitle {
   position: absolute;
+  z-index: 2;              /* 蓋在宿主放進格子的東西（預覽影片）上面 */
   left: 0;
   right: 0;
   bottom: 0;
@@ -650,15 +654,32 @@
   line-height: 1.35;
   color: #f0f0f2;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.82));
+  pointer-events: none;
+}
+
+.bv-gtitle-win {
+  display: block;
+  height: calc(2 * 1.35em);
+  overflow: hidden;
+}
+
+.bv-gtitle-win > span {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  pointer-events: none;
 }
 
-.bv-gtile[data-failed="1"] .bv-gtitle {
-  z-index: 1;
+.bv-gtitle[data-mq] .bv-gtitle-win > span {
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
+  animation: bv-mq var(--bv-mq-t, 6s) ease-in-out infinite alternate;
+}
+
+@keyframes bv-mq {
+  0%, 12% { transform: translateY(0); }
+  88%, 100% { transform: translateY(var(--bv-mq-y, 0)); }
 }
 
 /* 總覽開著時縮圖列是多餘的，而且會壓住底下那幾格 */

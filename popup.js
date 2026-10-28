@@ -112,6 +112,8 @@
               hint: o(0, "停在某一格時從影片串流抓那一刻（每格約 1 MB）", "Grabs that moment from the video stream when you stop on a frame (about 1 MB each)") },
             { type: "sw", key: "viewerWall", label: o(0, "封面牆", "Cover wall"),
               hint: o(0, "這頁所有影片的大封面，點一張開那部影片", "Large covers of every video on the page; open one to go to it") },
+            { type: "sw", key: "viewerPreview", label: o(0, "封面牆滑鼠停留播預覽", "Preview on hover in the cover wall"),
+              hint: o(0, "跟頁面上的卡片一樣；有高畫質快取時用高畫質", "Like the cards on the page, in HD when it is already cached") },
         ] },
         { id: "ads", ico: "⊘", title: o(0, "廣告", "Ads"), items: [
             { type: "sw", key: "hideAds", label: o(0, "隱藏頁面廣告", "Hide page ads"),

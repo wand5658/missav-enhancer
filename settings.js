@@ -55,6 +55,7 @@ globalThis.VHS = (() => {
         viewerStory: true,
         viewerSharp: true,          // 分鏡單張停一下就從串流抓清楚畫面（一格約 1 MB）
         viewerWall: true,
+        viewerPreview: true,        // 封面牆：滑鼠停在格子上播預覽
 
         ads: true,
         hideAds: true,
@@ -68,7 +69,7 @@ globalThis.VHS = (() => {
         list: ["listChips", "listPager", "listCols"],
         video: ["videoTheater", "videoGap", "videoHidePromo"],
         look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "hoverHD", "rowDrag", "reveal", "revealGap", "revealMs"],
-        viewer: ["viewerStory", "viewerSharp", "viewerWall"],
+        viewer: ["viewerStory", "viewerSharp", "viewerWall", "viewerPreview"],
         ads: ["hideAds"],
     };
     const MASTER = {};
