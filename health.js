@@ -30,8 +30,11 @@
         if (kind === "home" && VHS.on("home") && VHS.on("homeRows") && !has("[data-vh-row]"))
             add("rows", `${count("div.is-home div.grid")} grids`);
         if (kind === "list" && root && VHS.on("list")) {
-            // 下拉選單的標籤是「名稱: 值」；有這種標籤卻沒換成按鈕
-            const labels = [...root.querySelectorAll(".relative > a > span")].filter(s => /[:：]/.test(s.textContent));
+            // 下拉選單的標籤是「名稱: 值」；有這種標籤卻沒換成按鈕。
+            // 只看工具列（跟 initToolbar 同一個範圍）：卡片的 div.relative > a > span 是片長「2:03:04」，也有冒號
+            const labels = [...root.querySelectorAll(
+                ":scope > div.flex.justify-between.mb-6 > .relative > a > span, :scope > div.flex.justify-end.mb-3 > .relative > a > span"
+            )].filter(s => /[:：]/.test(s.textContent));
             if (VHS.on("listChips") && labels.length && !has(".vh-groups")) add("chips", `${labels.length} dropdowns`);
             const paged = [...root.querySelectorAll("nav a[href*='page=']")].some(a => !a.closest(".vh-pager, .vh-mini"));
             if (VHS.on("listPager") && paged && !has("nav.vh-pager")) add("pager");
