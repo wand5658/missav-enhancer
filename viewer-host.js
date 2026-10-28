@@ -102,7 +102,8 @@
         help: [["Enter", STR[l].helpEnter]],
         itemAction,
         onShow: item => wantSharp(item),      // 分鏡格先顯示模糊的，停一下再換成串流抓的清楚畫面
-        tileHover,
+        tileHover: (item, tile) => hoverPreview(item, tile),
+        imageHover: (item, layer) => hoverPreview(item, layer),   // 單張：疊在圖上的那一層，跟著縮放
         reduced: () => VHS.reduced(),
         onRound: () => roundTitle,
         onClose,
@@ -458,12 +459,13 @@
         return "";
     }
 
-    // ── 封面牆：滑鼠停在格子上播預覽（設定 viewerPreview）─────────────
+    // ── 封面牆：滑鼠停在格子上（或單張的圖上）播預覽（設定 viewerPreview）─────────────
     // 跟頁面上的卡片一樣：先播站台的 preview.mp4；「卡片預覽用高畫質」開著、而且 hd.js 快取裡已經有這部的串流，
     // 就再疊一層高畫質快剪，出畫面才淡入蓋上去（不 fetch 影片頁，不多碰 Cloudflare）。
-    // 停 HOVER_DELAY 才開始，掃過去的格子不發 request；同時只有一格（viewer 保證），移開就整個拿掉
+    // 停 HOVER_DELAY 才開始，掃過去的格子不發 request；同時只有一格（viewer 保證），移開就整個拿掉。
+    // el 是總覽的格子，或單張時疊在圖上的那一層（viewer 讓它跟圖同大小、同變形）
     const HOVER_DELAY = 300;
-    function tileHover(item, tile) {
+    function hoverPreview(item, el) {
         if (!item.bvPreview || !VHS.on("viewerPreview")) return null;
         const boxes = [];
         let mont = null;
@@ -471,7 +473,7 @@
         const layer = () => {
             const box = document.createElement("div");
             box.className = "vh-tp";
-            tile.append(box);
+            el.append(box);
             boxes.push(box);
             return box;
         };
@@ -491,7 +493,7 @@
             const entry = await VHD.peek(id);
             if (dead || !entry) return;
             const hd = layer();
-            mont = VHD.montage(hd, entry, VHD.quality(tile.getBoundingClientRect().width), () => { hd.remove(); mont = null; });
+            mont = VHD.montage(hd, entry, VHD.quality(el.getBoundingClientRect().width), () => { hd.remove(); mont = null; });
             mont.play().catch(() => {});
         }, HOVER_DELAY);
         return () => {

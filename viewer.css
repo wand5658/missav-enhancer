@@ -113,6 +113,19 @@
   display: none;
 }
 
+/* 疊在圖上給宿主放東西的那一層（imageHover）：大小、變形由 applyTransform 跟圖同步 */
+.bv-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.bv-layer:empty {
+  display: none;
+}
+
 /* ── 載入指示 ─────────────────────────────────────────── */
 
 .bv-spinner {

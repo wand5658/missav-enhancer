@@ -21,6 +21,8 @@
    - itemAction(item) 這一張的動作 { label, run } 或 null（Enter 與工具列最左邊那顆）
    - onShow(item)     換到某一張之後
    - tileHover(item, tile)  滑鼠進到總覽的某一格；回傳一個收掉的函式（滑鼠離開、總覽關掉時呼叫）
+   - imageHover(item, layer)  單張時滑鼠在圖上；layer 疊在圖上、跟著縮放 / 平移 / 旋轉，大小是圖的原尺寸。
+                      回傳收掉的函式（離開圖、換張、開總覽、關 viewer 時呼叫）
    - reduced()        要不要少動畫（預設看 prefers-reduced-motion）；目前只管標題跑馬燈
    - onRound(items)   一輪開始（items 已換好、goTo 之前）；回傳這一輪的標題
    - onUpdate()       工具列狀態更新完；宿主自己的按鈕在這裡跟著改
@@ -392,6 +394,7 @@
       overlay.innerHTML = `
         <div class="bv-stage">
           <img class="bv-img" draggable="false" alt="">
+          <div class="bv-layer"></div>
           <div class="bv-spinner" hidden></div>
           <button class="bv-nav bv-nav--prev" tabindex="-1" title="${T.prev} (←)" aria-label="${T.prev}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
@@ -450,6 +453,7 @@
         overlay,
         stage: shadow.querySelector('.bv-stage'),
         img: shadow.querySelector('.bv-img'),
+        layer: shadow.querySelector('.bv-layer'),
         spinner: shadow.querySelector('.bv-spinner'),
         counter: shadow.querySelector('.bv-counter'),
         title: shadow.querySelector('.bv-title'),
@@ -515,8 +519,12 @@
     }
 
     function applyTransform() {
-      ui.img.style.transform =
-        `translate(-50%,-50%) translate(${panX}px, ${panY}px) scale(${scale}) rotate(${rotation}deg)`;
+      const t = `translate(-50%,-50%) translate(${panX}px, ${panY}px) scale(${scale}) rotate(${rotation}deg)`;
+      ui.img.style.transform = t;
+      // 宿主的那一層跟圖疊在一起：同樣的原尺寸、同樣的變形
+      ui.layer.style.width = `${ui.img.naturalWidth}px`;
+      ui.layer.style.height = `${ui.img.naturalHeight}px`;
+      ui.layer.style.transform = t;
     }
 
     function setMode(m) {
@@ -550,6 +558,7 @@
 
     function goTo(i) {
       if (!items.length) return;
+      if (items[index] !== items[Math.min(items.length - 1, Math.max(0, i))]) imageLeave();   // 換張了，上一張的收掉
       index = Math.min(items.length - 1, Math.max(0, i));
 
       rotation = rotations.get(srcOf(items[index])) || 0;   // 回到轉過的圖，角度接回去
@@ -615,6 +624,7 @@
 
       setMode(mode === 'free' ? 'fit' : mode);
       scheduleSlide();
+      imageCheck();      // 換張後滑鼠沒動也算停在新的這張上
     }
 
     async function next() {
@@ -1140,6 +1150,33 @@
       hoverStop = null;
     }
 
+    /* ── 單張時滑鼠停在圖上 ─────────────────────────────
+       宿主的 imageHover 可以在疊在圖上的那一層（.bv-layer）放東西（例如預覽影片）。
+       「在圖上」是指標落在圖實際畫出來的範圍裡（縮放 / 平移後的），不是整個舞台 */
+    let imageItem = null;
+    let imageStop = null;
+    let pointer = null;        // 最後一次在舞台上的指標位置；換張後用它判斷是不是還停在圖上
+
+    function imageCheck() {
+      if (!host.imageHover || !open || !ui.grid.hidden || !pointer || !ui.img.naturalWidth) { imageLeave(); return; }
+      const r = ui.img.getBoundingClientRect();
+      const inside = pointer.x >= r.left && pointer.x <= r.right && pointer.y >= r.top && pointer.y <= r.bottom;
+      if (!inside) { imageLeave(); return; }
+      const item = items[index];
+      if (item === imageItem) return;
+      imageLeave();
+      imageItem = item;
+      try { imageStop = host.imageHover(item, ui.layer) || null; } catch { imageStop = null; }
+    }
+
+    function imageLeave() {
+      if (!imageItem) return;
+      try { imageStop?.(); } catch { /* 宿主收不乾淨也不影響 viewer */ }
+      ui.layer.textContent = '';
+      imageItem = null;
+      imageStop = null;
+    }
+
     // ms = 0：一直留著（批次下載進度用），等下一個 toast 蓋掉
     function toast(msg, ms = 1400) {
       if (!ui) return;
@@ -1410,7 +1447,11 @@
           ui.overlay.dataset.near = e.clientX - r.left < near ? 'prev' : r.right - e.clientX < near ? 'next' : '';
         });
       });
-      ui.stage.addEventListener('pointerleave', () => { ui.overlay.dataset.near = ''; });
+      ui.stage.addEventListener('pointerleave', () => { ui.overlay.dataset.near = ''; pointer = null; imageLeave(); });
+      ui.stage.addEventListener('pointermove', (e) => {
+        pointer = { x: e.clientX, y: e.clientY };
+        imageCheck();
+      });
       for (const [btn, go] of [[ui.navPrev, () => prev()], [ui.navNext, () => next()]]) {
         btn.addEventListener('click', (e) => { e.stopPropagation(); if (btn.dataset.off !== '1') go(); });
         btn.addEventListener('dblclick', (e) => e.stopPropagation());   // 連點翻兩張，不是切縮放模式
@@ -1537,6 +1578,7 @@
 
     function openGrid() {
       if (!ui.grid.hidden) return;
+      imageLeave();
       ui.grid.hidden = false;
       ui.gridBtn.dataset.on = '1';
       ui.overlay.dataset.grid = '1';
@@ -1784,6 +1826,8 @@
         scrollLock = null;
       }
 
+      imageLeave();
+      pointer = null;
       host.onClose?.(items, index);   // 捲回頁面上剛才在看的那張之類，由宿主決定
     }
 
