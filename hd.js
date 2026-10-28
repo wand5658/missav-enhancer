@@ -62,20 +62,28 @@ globalThis.VHD = (() => {
     const TOUCH_MS = 864e5;
     let pruned = false;
 
+    // 擴充功能重新載入後，舊分頁裡的這份腳本還活著，但 chrome.storage 一呼叫就同步丟
+    // 「Extension context invalidated」。當成沒有快取就好，不要變成未捕捉的錯誤
     const getCache = id => new Promise(res => {
         if (!local) return res(null);
-        local.get(KEY(id), o => {
-            const e = o?.[KEY(id)];
-            if (!e || e.v !== VER) return res(null);
-            if (!(Date.now() - e.t < TOUCH_MS)) putCache(id, e);
-            res(e);
-        });
+        try {
+            local.get(KEY(id), o => {
+                const e = o?.[KEY(id)];
+                if (!e || e.v !== VER) return res(null);
+                if (!(Date.now() - e.t < TOUCH_MS)) putCache(id, e);
+                res(e);
+            });
+        } catch {
+            res(null);
+        }
     });
     const putCache = (id, e) => {
         if (!local) return;
-        local.set({ [KEY(id)]: { ...e, v: VER, t: Date.now() } })
-            .then(() => prune(), () => prune(true))
-            .catch(err => log("prune error", err));
+        try {
+            local.set({ [KEY(id)]: { ...e, v: VER, t: Date.now() } })
+                .then(() => prune(), () => prune(true))
+                .catch(err => log("prune error", err));
+        } catch { /* 同上：context 已失效 */ }
     };
 
     // 每頁最多一次（寫入失敗時強制再一次）；舊 VER 的一律刪

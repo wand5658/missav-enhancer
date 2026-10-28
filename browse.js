@@ -842,7 +842,8 @@
             .map(img => img.dataset.src || img.src)
             .filter(u => /^https:\/\/[^"'\s()<>\\]+\/cover-t\.jpg$/.test(u)))];
         if (here.length >= 18) return here;
-        const saved = (await chrome.storage.local.get(LOGIN_KEY).catch(() => ({})))[LOGIN_KEY];
+        // 擴充功能重新載入過的舊分頁，chrome.storage 會同步丟錯，所以包在 async 裡變成 reject 再接住
+        const saved = (await (async () => chrome.storage.local.get(LOGIN_KEY))().catch(() => ({})))[LOGIN_KEY];
         if (saved?.list?.length >= LOGIN_MIN && Date.now() - saved.t < 864e5) return [...new Set([...here, ...saved.list])];
         if (here.length >= LOGIN_MIN) return here;
         // 首頁網址取頁首的 logo 連結（帶語系前綴時也對）；最近更新取選單裡結尾是 /new 的連結
@@ -858,7 +859,7 @@
             if (!r?.ok) continue;
             const list = [...new Set((await r.text()).match(COVER_T) || [])].slice(0, 36);
             if (list.length < LOGIN_MIN) continue;
-            chrome.storage.local.set({ [LOGIN_KEY]: { t: Date.now(), list } }).catch(() => {});
+            (async () => chrome.storage.local.set({ [LOGIN_KEY]: { t: Date.now(), list } }))().catch(() => {});
             return [...new Set([...here, ...list])];
         }
         return here;
