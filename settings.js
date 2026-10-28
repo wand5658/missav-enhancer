@@ -3,7 +3,7 @@
 // content script 這邊排在第二個 content_scripts 條目的最前面，hero.js / browse.js 等 VHS.ready 再啟動。
 globalThis.VHS = (() => {
     const DEFAULTS = {
-        lang: "auto",               // auto / zh / en（只影響 popup）
+        lang: "auto",               // auto / zh / en（popup 與分鏡 / 封面牆的 viewer；頁面上其他改版的文字不跟著換）
         motion: "system",           // system / full / reduce
 
         antiPause: true,
@@ -51,8 +51,16 @@ globalThis.VHS = (() => {
         revealGap: 150,
         revealMs: 800,
 
+        viewer: true,               // 分鏡與封面牆（viewer-host.js）
+        viewerStory: true,
+        viewerSharp: true,          // 分鏡單張停一下就從串流抓清楚畫面（一格約 1 MB）
+        viewerWall: true,
+        viewerPreview: true,        // 封面牆：滑鼠停在格子上播預覽
+        viewerHD: true,             // 封面牆的預覽用高畫質（快取沒有就抓影片頁）
+
         ads: true,
         hideAds: true,
+        blockPop: true,             // 影片頁點播放時站台開的廣告分頁（pop-block.js）
     };
 
     // 項目 → 所屬的總開關。總開關關掉，底下的項目一律當成關
@@ -63,7 +71,8 @@ globalThis.VHS = (() => {
         list: ["listChips", "listPager", "listCols"],
         video: ["videoTheater", "videoGap", "videoHidePromo"],
         look: ["ambient", "ambientAlpha", "breathe", "washAlpha", "glass", "hoverHD", "rowDrag", "reveal", "revealGap", "revealMs"],
-        ads: ["hideAds"],
+        viewer: ["viewerStory", "viewerSharp", "viewerWall", "viewerPreview", "viewerHD"],
+        ads: ["hideAds", "blockPop"],
     };
     const MASTER = {};
     for (const [m, keys] of Object.entries(GROUPS)) keys.forEach(k => { MASTER[k] = m; });

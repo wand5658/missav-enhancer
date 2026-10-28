@@ -44,7 +44,7 @@
     const o = (v, zh, en = zh) => ({ v, zh, en });
     const GROUPS = [
         { id: "general", ico: "⚙", title: o(0, "一般", "General"), items: [
-            { type: "seg", key: "lang", label: o(0, "介面語言", "Language"),
+            { type: "seg", key: "lang", label: o(0, "介面語言", "Language"), hint: o(0, "設定面板與分鏡 / 封面牆", "This popup and the storyboard / cover wall"),
               options: [o("auto", "自動", "Auto"), o("zh", "繁中"), o("en", "English")] },
             { type: "seg", key: "motion", label: o(0, "動態效果", "Motion"), hint: o(0, "「減少」會關掉所有動畫", "“Reduce” turns off all animation"),
               options: [o("system", "跟隨系統", "System"), o("full", "完整", "Full"), o("reduce", "減少", "Reduce")] },
@@ -105,9 +105,23 @@
             { type: "range", key: "revealGap", label: o(0, "浮出間隔", "Stagger"), min: 0, max: 300, step: 10, unit: "ms" },
             { type: "range", key: "revealMs", label: o(0, "浮出長度", "Duration"), min: 200, max: 1500, step: 50, unit: "ms" },
         ] },
+        { id: "viewer", ico: "⊞", title: o(0, "分鏡與封面牆", "Storyboard and cover wall"), items: [
+            { type: "sw", key: "viewerStory", label: o(0, "分鏡", "Storyboard"),
+              hint: o(0, "影片頁右緣的抽屜：把拖曳預覽圖攤開，點一格從那裡播", "Drawer on the video page's right edge: lays out the scrub thumbnails, play from any one") },
+            { type: "sw", key: "viewerSharp", label: o(0, "分鏡單張用清楚畫面", "Sharp storyboard frames"),
+              hint: o(0, "停在某一格時從影片串流抓那一刻（每格約 1 MB）", "Grabs that moment from the video stream when you stop on a frame (about 1 MB each)") },
+            { type: "sw", key: "viewerWall", label: o(0, "封面牆", "Cover wall"),
+              hint: o(0, "這頁所有影片的大封面，點一張開那部影片", "Large covers of every video on the page; open one to go to it") },
+            { type: "sw", key: "viewerPreview", label: o(0, "封面牆滑鼠停留播預覽", "Preview on hover in the cover wall"),
+              hint: o(0, "總覽和點開的單張都會播", "In the grid and in single view") },
+            { type: "sw", key: "viewerHD", label: o(0, "封面牆預覽用高畫質", "HD previews in the cover wall"),
+              hint: o(0, "先播原本的預覽，高畫質好了再換上。沒看過的影片會向網站讀一次影片頁", "Starts with the normal preview, then switches to HD. For videos not seen before it loads the video page once") },
+        ] },
         { id: "ads", ico: "⊘", title: o(0, "廣告", "Ads"), items: [
             { type: "sw", key: "hideAds", label: o(0, "隱藏頁面廣告", "Hide page ads"),
               hint: o(0, "首頁、列表頁、影片頁的橫幅與右下角廣告", "Banners and the corner ad") },
+            { type: "sw", key: "blockPop", label: o(0, "擋掉彈出的廣告分頁", "Block pop-up ad tabs"),
+              hint: o(0, "影片頁第一次點播放（或按空白鍵）時網站會開的那個", "The one the site opens on your first click on the player (or Space)") },
         ] },
     ];
 
@@ -306,6 +320,8 @@
         cover: o(0, "環境光封面", "Ambient light cover"),
         cardTitle: o(0, "影片卡標題", "Video card titles"),
         hdBlocked: o(0, "高畫質預覽被網站擋下", "HD previews blocked by the site"),
+        storyboard: o(0, "分鏡（讀不到預覽圖規格）", "Storyboard (scrub thumbnail spec not found)"),
+        popBlock: o(0, "擋廣告分頁（網站改了開分頁的方式）", "Pop-up ad blocking (the site changed how it opens them)"),
     };
     let health = null;              // { kind, miss, report } 或 null（沒回應）
     function renderHealth() {

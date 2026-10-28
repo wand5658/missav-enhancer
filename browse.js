@@ -25,7 +25,11 @@
 
     // 廣告：browse.css 裡不分頁面種類的那幾條（右下角、直播小窗、頁尾上方 300×250）每一頁都要收，
     // 不能等下面的頁面判斷——認不得的頁面會在那裡就 return
-    const applyAds = () => html.classList.toggle("vh-hide-ads", VHS.on("hideAds"));
+    // 擋廣告分頁的開關給 MAIN world 的 pop-block.js 讀（同上，它用不了 chrome.storage）
+    const applyAds = () => {
+        html.classList.toggle("vh-hide-ads", VHS.on("hideAds"));
+        html.dataset.vhPop = VHS.on("blockPop") ? "block" : "allow";
+    };
     applyAds();
     VHS.subscribe(applyAds);
 

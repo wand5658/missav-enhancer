@@ -1,0 +1,767 @@
+/* 這份 CSS 被注入 Shadow DOM，選擇器只作用在 viewer 內部，不會被網站樣式污染 */
+
+:host {
+  all: initial;
+  font-family: system-ui, "Segoe UI", "Noto Sans TC", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.bv-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0b0b0d;
+  color: #e8e8ea;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: bv-fade 0.12s ease-out;
+  overflow: hidden;
+}
+
+@keyframes bv-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── 圖片舞台 ─────────────────────────────────────────── */
+
+.bv-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.bv-stage[data-dragging="1"] {
+  cursor: grabbing;
+}
+
+/* 上一張 / 下一張：平常隱形，滑鼠靠近那一側（content.js 量距離，寫 data-near）才浮出來；
+   按鈕本身一直在，看不到也點得到。只佔中間一段高度，不擋工具列和縮圖列 */
+.bv-nav {
+  all: unset;
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 1;
+  width: 72px;
+  height: min(50vh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f2f2f4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.25s, background 0.15s;
+}
+
+/* 第一張 / 最後一張：隱形也不作用，但還佔著位置吃掉連點的第二下 */
+.bv-nav[data-off="1"] {
+  opacity: 0 !important;
+  cursor: inherit;
+  background: none !important;
+}
+
+.bv-nav--prev { left: 0; border-radius: 0 10px 10px 0; }
+.bv-nav--next { right: 0; border-radius: 10px 0 0 10px; }
+
+.bv-nav svg {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.6));
+}
+
+.bv-overlay[data-near="prev"] .bv-nav--prev,
+.bv-overlay[data-near="next"] .bv-nav--next {
+  opacity: 0.85;
+}
+
+.bv-nav:hover { opacity: 1 !important; }
+.bv-nav--prev:hover { background: linear-gradient(90deg, rgba(0, 0, 0, 0.4), transparent); }
+.bv-nav--next:hover { background: linear-gradient(-90deg, rgba(0, 0, 0, 0.4), transparent); }
+
+/* 沒有滑鼠（觸控）就量不到距離，維持半透明，不然根本不知道那裡能按 */
+@media (hover: none) {
+  .bv-nav { opacity: 0.45; }
+}
+
+/* 拖曳中別冒出來擋視線 */
+.bv-stage[data-dragging="1"] .bv-nav {
+  opacity: 0 !important;
+}
+
+.bv-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  will-change: transform;
+  image-rendering: auto;
+  -webkit-user-drag: none;
+  max-width: none;  /* 蓋掉任何繼承來的縮放限制 */
+  max-height: none;
+}
+
+.bv-img[hidden] {
+  display: none;
+}
+
+/* 疊在圖上給宿主放東西的那一層（imageHover）：大小、變形由 applyTransform 跟圖同步 */
+.bv-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.bv-layer:empty {
+  display: none;
+}
+
+/* ── 載入指示 ─────────────────────────────────────────── */
+
+.bv-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #7ab7ff;
+  border-radius: 50%;
+  animation: bv-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+.bv-spinner[hidden] {
+  display: none;
+}
+
+@keyframes bv-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 上方列 ───────────────────────────────────────────── */
+
+.bv-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.bv-counter {
+  pointer-events: auto;
+  flex: none;             /* 後面帶了時間 / 片長也不能被工具列擠成直排 */
+  white-space: nowrap;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(20, 20, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 這本的標題：跟計數器同一種膠囊，太長就截掉（完整字串在 title tooltip）。
+   flex 可縮、不可長，寬度先讓給右邊的工具列 */
+.bv-title {
+  pointer-events: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40vw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(20, 20, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bv-title[hidden] {
+  display: none;
+}
+
+.bv-spacer {
+  flex: 1;
+}
+
+.bv-tools {
+  pointer-events: auto;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bv-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  color: #d7d7db;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.bv-btn[hidden] {
+  display: none;
+}
+
+/* 這一張的動作（宿主的 itemAction）：這一輪的主要動作，跟其他工具鈕分得出來 */
+.bv-btn--go {
+  flex: none;
+  white-space: nowrap;
+  color: #cfe4ff;
+  background: rgba(122, 183, 255, 0.18);
+}
+
+.bv-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.bv-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bv-btn[data-on="1"] {
+  background: rgba(122, 183, 255, 0.22);
+  color: #a8d0ff;
+}
+
+.bv-btn--mode {
+  font-size: 12px;
+  min-width: 74px;
+}
+
+/* 收藏亮起來用暖色，跟其他 toggle（藍）分得開 */
+.bv-btn--fav[data-on="1"] {
+  background: rgba(255, 122, 140, 0.22);
+  color: #ffabb8;
+}
+
+.bv-btn--close:hover {
+  background: rgba(255, 90, 90, 0.24);
+  color: #ffb3b3;
+}
+
+/* ── 下載下拉選單 ─────────────────────────────────────── */
+
+.bv-btn--caret {
+  min-width: 18px;
+  padding: 0 2px;
+  font-size: 10px;
+  color: #9a9aa2;
+}
+
+.bv-menu {
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  z-index: 4;
+}
+
+.bv-menu[hidden] {
+  display: none;
+}
+
+.bv-mi {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1;
+  color: #d7d7db;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.bv-mi:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.bv-sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bv-mi em {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-style: normal;
+  font-size: 11px;
+  color: #ffd9a0;
+  opacity: 0.75;
+}
+
+/* ── 閒置隱藏（滑鼠靜止 / 移出視窗） ──────────────────── */
+
+.bv-topbar,
+.bv-thumbs {
+  transition: opacity 0.25s ease;
+}
+
+.bv-overlay[data-idle="1"] .bv-topbar,
+.bv-overlay[data-idle="1"] .bv-thumbs,
+.bv-overlay[data-idle="1"] .bv-nav {
+  opacity: 0 !important;
+}
+
+/* .bv-topbar 本身已是 pointer-events:none，要關的是撐開 auto 的子元素 */
+.bv-overlay[data-idle="1"] .bv-counter,
+.bv-overlay[data-idle="1"] .bv-title,
+.bv-overlay[data-idle="1"] .bv-tools,
+.bv-overlay[data-idle="1"] .bv-thumbs,
+.bv-overlay[data-idle="1"] .bv-nav {
+  pointer-events: none;
+}
+
+.bv-overlay[data-idle="1"] .bv-stage {
+  cursor: none;
+}
+
+/* ── 輪播進度條 ───────────────────────────────────────── */
+
+.bv-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.bv-progress[hidden] {
+  display: none;
+}
+
+.bv-progress > i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #7ab7ff;
+}
+
+@keyframes bv-progress {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* ── 縮圖列 ───────────────────────────────────────────── */
+
+.bv-thumbs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.35) 70%, transparent);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  z-index: 3;
+}
+
+.bv-thumbs[hidden] {
+  display: none;
+}
+
+/* 按住左鍵可以左右拖曳捲動 */
+.bv-thumbs {
+  cursor: grab;
+}
+
+.bv-thumbs[data-dragging="1"] {
+  cursor: grabbing;
+  user-select: none;
+  scroll-behavior: auto;
+}
+
+.bv-thumbs[data-dragging="1"] .bv-thumb {
+  pointer-events: none;
+}
+
+.bv-thumbs::-webkit-scrollbar {
+  height: 8px;
+}
+
+.bv-thumbs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 4px;
+}
+
+.bv-thumb {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: opacity 0.12s, outline-color 0.12s;
+  background: #1a1a1e;
+}
+
+.bv-thumb:hover {
+  opacity: 0.85;
+}
+
+.bv-thumb[data-active="1"] {
+  opacity: 1;
+  outline-color: #7ab7ff;
+}
+
+/* ── 格狀總覽 ─────────────────────────────────────────── */
+
+/* .bv-topbar 之下（z-index 3），.bv-stage 之上，所以工具列仍浮在總覽上面可以按 */
+.bv-grid {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #0b0b0d;
+  padding: 56px 14px 14px;   /* 上面留給上方列 */
+  overflow-anchor: none;     /* 推薦區的防擠走由 content.js 的 ResizeObserver 自己補，別讓瀏覽器偶爾也補一次變成補兩次 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  z-index: 2;
+}
+
+.bv-grid[hidden] {
+  display: none;
+}
+
+.bv-grid::-webkit-scrollbar {
+  width: 10px;
+}
+
+.bv-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 5px;
+}
+
+/* 瀑布流：欄寬固定，高度由 JS 用 grid-row-end: span N 疊出來（見 layoutTile）。
+   GRID_ROW / GRID_GAP 在 content.js 裡，改這裡的數字要一起改。
+   --bv-col 是縮圖大小，由 applyGridCol() 設；auto-fill 會自己算欄數 */
+.bv-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--bv-col, 200px), 1fr));
+  grid-auto-rows: 8px;
+  gap: 8px;
+}
+
+/* ── 總覽最底下的宿主區塊（.bv-next）：一排連結卡片（.bv-rel） ── */
+
+.bv-next {
+  margin: 36px 0 8px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bv-next[hidden] {
+  display: none;
+}
+
+.bv-next-head {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #e8e8ea;
+}
+
+.bv-next-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px 12px;
+}
+
+.bv-rel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+.bv-rel-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;     /* 圖壞了也留著框，一列才不會缺一格 */
+  overflow: hidden;
+  border-radius: 6px;
+  background: #1a1a1e;
+}
+
+.bv-rel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s, filter 0.2s;
+}
+
+.bv-rel-img[hidden] {
+  display: none;
+}
+
+.bv-rel:hover .bv-rel-img {
+  transform: scale(1.05);
+}
+
+.bv-rel-title {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #c8c8cc;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bv-rel:hover .bv-rel-title {
+  color: #fff;
+}
+
+/* 看過的：角落一個標籤，圖不動 */
+.bv-rel-seen {
+  display: none;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #e8e8ea;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.bv-rel[data-seen] .bv-rel-seen {
+  display: block;
+}
+
+.bv-gtile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #1a1a1e;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.12s, filter 0.12s;
+}
+
+.bv-gtile:hover {
+  filter: brightness(1.15);
+  outline-color: rgba(255, 255, 255, 0.35);
+}
+
+.bv-gtile[data-active="1"] {
+  outline-color: #7ab7ff;
+}
+
+.bv-gimg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 載不到的格子仍然要看得出是第幾張、而且點得進去 */
+.bv-gtile[data-failed="1"]::after {
+  content: attr(data-n);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.4);
+  background: #232329;
+}
+
+/* 每張自己的說明（data-bv-cap），壓在格子右下角；有標題的格子移到右上角，讓出底下給標題 */
+.bv-gtile[data-cap]:not([data-failed="1"])::after {
+  content: attr(data-cap);
+  position: absolute;
+  z-index: 2;              /* 蓋在宿主放進格子的東西（預覽影片）上面 */
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #e8e8ea;
+  background: rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+}
+
+.bv-gtile[data-cap]:has(.bv-gtitle):not([data-failed="1"])::after {
+  top: 4px;
+  bottom: auto;
+}
+
+/* 每張自己的標題（data-bv-title）：格子底部一條漸層，兩行；放不下時平常是刪節號，
+   滑鼠停著就上下來回捲出被擋住的那幾行（viewer.js 的 tileEnter 量出要捲多遠，寫進 --bv-mq-y / --bv-mq-t）。
+   兩行的窗（.bv-gtitle-win）跟 padding 分開，捲動時才不會露出第三行的上緣 */
+.bv-gtitle {
+  position: absolute;
+  z-index: 2;              /* 蓋在宿主放進格子的東西（預覽影片）上面 */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 8px 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #f0f0f2;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.82));
+  pointer-events: none;
+}
+
+.bv-gtitle-win {
+  display: block;
+  height: calc(2 * 1.35em);
+  overflow: hidden;
+}
+
+.bv-gtitle-win > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.bv-gtitle[data-mq] .bv-gtitle-win > span {
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
+  animation: bv-mq var(--bv-mq-t, 6s) ease-in-out infinite alternate;
+}
+
+@keyframes bv-mq {
+  0%, 12% { transform: translateY(0); }
+  88%, 100% { transform: translateY(var(--bv-mq-y, 0)); }
+}
+
+/* 總覽開著時縮圖列是多餘的，而且會壓住底下那幾格 */
+.bv-overlay[data-grid="1"] .bv-thumbs {
+  display: none;
+}
+
+/* ── 提示 / 說明 ──────────────────────────────────────── */
+
+.bv-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.bv-toast[data-show="1"] {
+  opacity: 1;
+}
+
+.bv-help {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 320px;
+  padding: 18px 22px;
+  border-radius: 12px;
+  background: rgba(16, 16, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  line-height: 1.9;
+  z-index: 6;
+}
+
+.bv-help[hidden] {
+  display: none;
+}
+
+.bv-help h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #a8d0ff;
+}
+
+.bv-help dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 18px;
+}
+
+.bv-help dt {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: #ffd9a0;
+  white-space: nowrap;
+}
+
+.bv-help dd {
+  color: #c9c9cf;
+}
