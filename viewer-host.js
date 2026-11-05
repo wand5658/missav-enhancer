@@ -514,8 +514,9 @@
         };
     }
 
-    // ── 入口：畫面右緣正中間的抽屜（自己一個 Shadow DOM，不碰頁面樣式）──
-    // 左下角會壓到播放器的播放鍵、上面是站台的導覽列，右緣中段是唯一沒人用的地方。
+    // ── 入口：畫面右緣偏下的抽屜（自己一個 Shadow DOM，不碰頁面樣式）──
+    // 左下角會壓到播放器的播放鍵、上面是站台的導覽列；右緣正中間又會壓到輪播的「下一張」箭頭，
+    // 所以放在右緣下段，用 bottom 定位，抽屜多一顆按鈕也是往上長，不會掉回中間。
     // 平常只露出 PEEK 寬的一條把手，滑鼠碰到（或 Tab 進來）才整個滑出來，播放器滿版時也只蓋到邊上一條。
     // 把手要自己看得見：站台是深色底，6px 的深灰半透明條等於隱形，所以左緣是粉色、中間一條淺色握把、外加陰影。
     // 不用快速鍵：播放器（Plyr）跟站台自己都吃鍵盤，撞到哪個都麻煩。
@@ -523,7 +524,7 @@
     const PEEK = 14;
     const host = document.createElement("div");
     host.id = "vh-viewer-launch";
-    host.style.cssText = "all:initial;position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:2147483646;";
+    host.style.cssText = "all:initial;position:fixed;right:0;bottom:18%;z-index:2147483646;";
     const root = host.attachShadow({ mode: "open" });
     root.innerHTML = `
       <style>
