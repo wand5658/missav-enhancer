@@ -1350,7 +1350,7 @@ html.vh-video :is(div.content-without-search, div.content-with-search) > div.fle
 
 /* 單欄：播放器 → 接著看（原側欄，改橫列）→ 標題 → 面板 → 詳情 → 相關影片。
  * 推薦緊貼播放器，不用捲到底才換片 */
-html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { order: 1; }
+html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) { order: 1; }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.order-last { order: 2; margin-left: 0; height: auto; }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 { order: 3; }
 html.vh-video :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-show*="share"] { order: 4; }
@@ -1371,7 +1371,7 @@ html.vh-theater :is(div.content-without-search, div.content-with-search) {
 /* 劇院底帶：撐到視窗兩邊的黑底；播放器寬度受視窗高度限制，影片畫面剛好填滿可視高度。
  * 開著環境光時底色改透明，讓後面的光透出來（見下方「環境光」）；overflow-x: clip 切掉光暈左右溢出，
  * 不然窄視窗會多出橫向捲軸 */
-html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child {
+html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) {
     /* 影片底部離視窗底線留 --vh-player-gap（設定 videoGap，寫在 <html>）；--vh-player-top 是播放器在文件裡的
      * 頂端位置（browse.js 量），不能只扣頁首高度：播放器上面還有 layout root 的上內距，扣不夠會被視窗底線切掉 */
     --vh-player-w: max(480px, calc((100vh - var(--vh-player-top, var(--vh-header, 0px)) - var(--vh-player-gap, 12px)) * 16 / 9));
@@ -1381,7 +1381,13 @@ html.vh-theater :is(div.content-without-search, div.content-with-search) > div.f
     overflow-x: clip;
     background: #000;
 }
-html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > * {
+/* 播放器上面的公告條（2026-11：主欄第一格多了 div.bg-primary「在 MissAV 上觀看影片不會被偷錄…」）：
+ * 它把播放器往下推，影片底部就被視窗底線切掉。播放器區塊改用 :has(video.player) 認，不靠 :first-child，
+ * 公告條拿掉也一樣對得到；擋在播放器前面、又不歸 x-show 管的東西在劇院模式下一律收掉 */
+html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > :not([x-show]):has(~ div[x-data] video.player) {
+    display: none;
+}
+html.vh-theater :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > * {
     max-width: var(--vh-player-w);
     margin-left: auto;
     margin-right: auto;
@@ -1593,7 +1599,7 @@ html.vh-tint body::after {
 }
 /* 上半部那層掛在播放器底帶上：它就在頁頂，跟著捲走；
  * 盒子不超出底帶寬度（blur 的溢出不算捲動範圍），往下由 mask 淡出 */
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child::before {
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player)::before {
     content: "";
     position: absolute;
     left: 0;
@@ -1608,10 +1614,10 @@ html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.f
     -webkit-mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
             mask-image: linear-gradient(180deg, #000 25%, rgba(0, 0, 0, .5) 60%, transparent 100%);
 }
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child { position: relative; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) { position: relative; }
 /* 播放器光暈：墊在播放器外框（第一個子元素）後面 */
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child { position: relative; isolation: isolate; }
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before {
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div:first-child { position: relative; isolation: isolate; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div:first-child::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -1623,16 +1629,16 @@ html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.f
     opacity: var(--vh-halo-a);
 }
 /* 光暈呼吸（設定 breathe），減少動態效果時不動 */
-html.vh-breathe:not(.vh-reduce) :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child::before { animation: vh-breathe 9s ease-in-out infinite alternate; }
+html.vh-breathe:not(.vh-reduce) :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div:first-child::before { animation: vh-breathe 9s ease-in-out infinite alternate; }
 @keyframes vh-breathe {
     from { transform: scale(1.08, 1.12); opacity: calc(var(--vh-halo-a) * .75); }
     to   { transform: scale(1.16, 1.24); opacity: var(--vh-halo-a); }
 }
 /* 光暈放大後會溢出播放器下緣，循環播放列、手機快轉列要疊在它上面 */
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:not(:first-child) { position: relative; z-index: 1; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div:not(:first-child) { position: relative; z-index: 1; }
 /* 劇院底帶和循環播放列原本黑底，會在光暈中間切出黑帶 */
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child,
-html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div.bg-black { background: transparent; }
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player),
+html.vh-ambient :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div.bg-black { background: transparent; }
 
 /* 玻璃面板：半透明＋背景模糊，透出底下的色調 */
 html.vh-glass :is(div.content-without-search, div.content-with-search) > div.flex[x-data] > div.flex-1 > div.mt-4 > div.flex.flex-wrap > :is(button, a),

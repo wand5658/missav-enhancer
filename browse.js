@@ -605,7 +605,7 @@
     // ── 影片頁：播放器頂端位置 ────────────────────────────────
     // browse.css 用它算播放器寬度，讓影片高度剛好到視窗底線上方。頂端位置跟寬度無關，量一次不會互相影響
     function measurePlayer() {
-        const box = root.querySelector(":scope > div.flex[x-data] > div.flex-1 > div[x-data]:first-child > div:first-child");
+        const box = root.querySelector(":scope > div.flex[x-data] > div.flex-1 > div[x-data]:has(video.player) > div:first-child");
         if (!box) return;
         const top = Math.round(box.getBoundingClientRect().top + scrollY);
         document.documentElement.style.setProperty("--vh-player-top", `${Math.max(0, top)}px`);
