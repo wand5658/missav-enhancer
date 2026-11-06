@@ -87,7 +87,7 @@ MissAV 一切到別的分頁或視窗，影片就自動暫停？這是 **missav.
 
 ## 運作原理
 
-網站的三個暫停處理器（`window` blur、`document` blur、`visibilitychange`）最後都會呼叫 `window.player.pause()`，`window.player` 是一個 [Plyr](https://plyr.io/) 實例。如果直接攔截這些事件，會弄壞頁面上其他也在聽這些事件的功能，所以 `anti-pause.js` 改成在 `document_start` 時、在頁面的 main world 裡，搶在頁面指派之前替 `window.player` 裝上 accessor，再把該實例的 `pause` 包起來。只有在 700 ms 內（可調）有點擊、按鍵或觸控時才放行暫停，所以你自己按的暫停有效，失去焦點造成的暫停會被擋掉。另有備援機制：如果有程式直接對 `<video>` 呼叫 `pause()`，會自動恢復播放。
+網站的三個暫停處理器（`window` blur、`document` blur、`visibilitychange`）最後都會呼叫 `window.player.pause()`，`window.player` 是一個 [Plyr](https://plyr.io/) 實例。如果直接攔截這些事件，會弄壞頁面上其他也在聽這些事件的功能，所以 `anti-pause.js` 改成在 `document_start` 時、在頁面的 main world 裡，搶在頁面指派之前替 `window.player` 裝上 accessor，再把該實例的 `pause` 包起來。只有在 700 ms 內（可調）有點擊、按鍵或觸控、而且頁面此刻仍有焦點時才放行暫停，所以你自己按的暫停有效，失去焦點造成的暫停會被擋掉——包括剛按下 `Alt+Tab` 的 Alt 鍵、或剛點回視窗就又點到別處的情況。從頁面外暫停（鍵盤媒體鍵、Chrome 或 Windows 的媒體控制、子母畫面）透過 Media Session API 辨識，同樣放行。另有備援機制：如果有程式直接對 `<video>` 呼叫 `pause()`，會自動恢復播放。
 
 版面改造是掛在 `<html>` class 底下的純 CSS，腳本只負責標記元素、插入自己的節點、量測尺寸，不會改動 Alpine.js 控制的元素的 `display`。完整的架構說明和失效時用 Console 排查的步驟在 [`CLAUDE.md`](CLAUDE.md)（英文）。
 
