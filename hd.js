@@ -336,13 +336,21 @@ globalThis.VHD = (() => {
             v.muted = v.defaultMuted = true;
             v.playsInline = true;
             v.preload = "auto";
-            if (load) url.then(u => { if (!dead) v.src = u; });
+            // 快取命中時 url 已經 resolve，src 在 play() 之後的下一個 microtask 才設：Chrome 把它當成重新載入，
+            // 那次 play() 以 AbortError 收場、video 停在 paused，快剪就永遠不出畫面（2026-11-06 重現：
+            // 輪播第二次看到同一部時 HD 不出來）。所以設完 src 照呼叫端要的狀態再 play 一次
+            if (load) url.then(u => {
+                if (dead) return;
+                v.src = u;
+                if (want && v === vs[a]) v.play().catch(() => {});
+            });
             v.addEventListener("error", fail);
             frame.append(v);
             return v;
         };
         let a = 0, i = 0, timer = 0, dead = false;
         let live = false;
+        let want = false;                   // 呼叫端要它播（play() 之後、pause() 之前）
         const born = performance.now();
         const seekTo = (v, t) => {
             if (v.readyState >= 1) v.currentTime = t;
@@ -395,6 +403,7 @@ globalThis.VHD = (() => {
         return {
             play() {
                 if (dead) return Promise.resolve();
+                want = true;
                 if (!timer) timer = setInterval(tick, 50);
                 return vs[a].play();
             },
@@ -407,6 +416,7 @@ globalThis.VHD = (() => {
                 }));
             },
             pause() {
+                want = false;
                 clearInterval(timer);
                 timer = 0;
                 vs[a].pause();
