@@ -80,7 +80,9 @@ globalThis.VHS = (() => {
     // 會改 DOM 結構的設定：content script 只在載入時讀一次，改了要重新整理分頁
     const RELOAD = new Set(["home", "homeRows", "list", "listChips", "listPager", "video"]);
 
-    const store = globalThis.chrome?.storage?.sync;
+    // Electron 載入本擴充功能時 storage.sync 物件在，但一呼叫就報 "sync is not available"：讀第一次失敗就改用 local
+    let area = "sync";
+    let store = globalThis.chrome?.storage?.sync;
     let cur = { ...DEFAULTS };
     const subs = new Set();
 
@@ -97,14 +99,21 @@ globalThis.VHS = (() => {
 
     const ready = new Promise(resolve => {
         if (!store) { resolve(); return; }
-        store.get(null, data => {
+        const load = () => store.get(null, data => {
+            if (globalThis.chrome.runtime.lastError && area === "sync") {
+                area = "local";
+                store = globalThis.chrome.storage.local;
+                load();
+                return;
+            }
             cur = { ...DEFAULTS, ...clean(data) };
             resolve();
         });
+        load();
     });
 
-    globalThis.chrome?.storage?.onChanged?.addListener((changes, area) => {
-        if (area !== "sync") return;
+    globalThis.chrome?.storage?.onChanged?.addListener((changes, name) => {
+        if (name !== area) return;
         const keys = Object.keys(changes).filter(k => k in DEFAULTS);
         if (!keys.length) return;
         for (const k of keys) {
@@ -132,7 +141,11 @@ globalThis.VHS = (() => {
             return Boolean(sysReduce?.matches);
         },
         subscribe(fn) { subs.add(fn); },
-        set(patch) { return store ? store.set(clean(patch)) : Promise.resolve(); },
-        reset() { return store ? store.clear() : Promise.resolve(); },
+        set(patch) { return ready.then(() => store ? store.set(clean(patch)) : undefined); },
+        // local 裡還有 browse.js 的其他資料，不能整個清掉
+        reset() {
+            return ready.then(() => !store ? undefined
+                : area === "sync" ? store.clear() : store.remove(Object.keys(DEFAULTS)));
+        },
     };
 })();
